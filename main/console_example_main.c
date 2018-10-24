@@ -20,6 +20,7 @@
 #include "esp_vfs_fat.h"
 #include "nvs.h"
 #include "nvs_flash.h"
+#include "gpio_setup.h"
 
 static const char* TAG = "example";
 
@@ -124,6 +125,8 @@ void app_main()
     initialize_filesystem();
 #endif
 
+	gpio_setup();
+
     initialize_console();
 
     /* Register commands */
@@ -134,7 +137,7 @@ void app_main()
     /* Prompt to be printed before each line.
      * This can be customized, made dynamic, etc.
      */
-    const char* prompt = LOG_COLOR_I "esp32> " LOG_RESET_COLOR;
+    const char* prompt = LOG_COLOR_I "omar> " LOG_RESET_COLOR;
 
     printf("\n"
            "This is an example of ESP-IDF console component.\n"
@@ -154,7 +157,7 @@ void app_main()
         /* Since the terminal doesn't support escape sequences,
          * don't use color codes in the prompt.
          */
-        prompt = "esp32> ";
+        prompt = "omar> ";
 #endif //CONFIG_LOG_COLORS
     }
 
