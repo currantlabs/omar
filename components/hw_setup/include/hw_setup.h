@@ -8,3 +8,6 @@
 
 // Configure the hardware
 void omar_setup(void);
+
+// Some console command:
+int toggle_blue(int argc, char** argv);

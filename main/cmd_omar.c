@@ -7,6 +7,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "esp_console.h"
+#include "hw_setup.h"
 #include "sdkconfig.h"
 
 
@@ -15,12 +16,6 @@ static void register_toggle_blue();
 void register_omar()
 {
     register_toggle_blue();
-}
-
-static int toggle_blue(int argc, char** argv)
-{
-    printf("%d\n", 666);
-    return 0;
 }
 
 static void register_toggle_blue()
