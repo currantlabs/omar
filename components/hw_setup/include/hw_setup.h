@@ -7,4 +7,4 @@
 #pragma once
 
 // Configure the hardware
-void hw_setup(void);
+void omar_setup(void);

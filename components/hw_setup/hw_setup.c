@@ -7,7 +7,7 @@
 
 static void gpio_setup(void);
 
-void hw_setup(void)
+void omar_setup(void)
 {
 	gpio_setup();
 }

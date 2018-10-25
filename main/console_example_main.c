@@ -125,7 +125,7 @@ void app_main()
     initialize_filesystem();
 #endif
 
-	hw_setup();
+    omar_setup();
 
     initialize_console();
 
