@@ -5,7 +5,14 @@
 #define GREEN_LED   27
 #define RED_LED     26 
 
-void gpio_setup(void)
+static void gpio_setup(void);
+
+void hw_setup(void)
+{
+	gpio_setup();
+}
+
+static void  gpio_setup(void)
 {
     /* Configure outputs */
     gpio_config_t io_conf = {

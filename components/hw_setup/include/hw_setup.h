@@ -6,5 +6,5 @@
 
 #pragma once
 
-// Configure the gpios
-void gpio_setup(void);
+// Configure the hardware
+void hw_setup(void);

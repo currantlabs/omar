@@ -125,7 +125,7 @@ void app_main()
     initialize_filesystem();
 #endif
 
-	gpio_setup();
+	hw_setup();
 
     initialize_console();
 
