@@ -133,6 +133,7 @@ void app_main()
     esp_console_register_help_command();
     register_system();
     register_wifi();
+    register_omar();
 
     /* Prompt to be printed before each line.
      * This can be customized, made dynamic, etc.

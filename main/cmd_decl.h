@@ -13,3 +13,6 @@ void register_system();
 
 // Register WiFi functions
 void register_wifi();
+
+// Register omar-specific functions
+void register_omar();
