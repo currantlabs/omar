@@ -11,3 +11,5 @@ void omar_setup(void);
 
 // Some console command:
 int toggle_blue(int argc, char** argv);
+int toggle_green(int argc, char** argv);
+int toggle_red(int argc, char** argv);
