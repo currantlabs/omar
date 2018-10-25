@@ -1,5 +1,5 @@
 #include <driver/gpio.h>
-#include "gpio_setup.h"
+#include "hw_setup.h"
 
 #define BLUE_LED    25
 #define GREEN_LED   27

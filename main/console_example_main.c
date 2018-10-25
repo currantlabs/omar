@@ -20,7 +20,7 @@
 #include "esp_vfs_fat.h"
 #include "nvs.h"
 #include "nvs_flash.h"
-#include "gpio_setup.h"
+#include "hw_setup.h"
 
 static const char* TAG = "example";
 
