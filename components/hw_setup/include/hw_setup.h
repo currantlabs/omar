@@ -46,9 +46,14 @@
 
 #ifdef    HW_ESP32_PICOKIT
 
-#define BLUE_LED    23
-#define GREEN_LED   18
-#define RED_LED     5
+#define BLUE_LED            23
+#define GREEN_LED           18
+#define RED_LED             5
+
+#define BUTTON_GPIO          0
+#define BUTTON_ACTIVE_LEVEL  0
+#define DEBOUNCE_TIME       30
+
 
 #endif // HW_ESP32_PICOKIT
 

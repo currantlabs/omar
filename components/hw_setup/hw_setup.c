@@ -1,14 +1,19 @@
 #include <driver/gpio.h>
 #include "hw_setup.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <iot_button.h>
 
 static void gpio_setup(void);
+static void button_setup(void);
 
 void omar_setup(void)
 {
     gpio_setup();
+	button_setup();
 }
 
-static void  gpio_setup(void)
+static void gpio_setup(void)
 {
     /* Configure outputs */
 
@@ -42,6 +47,37 @@ static void  gpio_setup(void)
     /* Configure the GPIO */
     gpio_config(&io_conf_red);
     
+}
+
+static void button_toggle_state(void)
+{
+	static bool on = false;
+
+	on = !on;
+
+	// For now, for the hell of it: turn all leds ON, or OFF:
+	gpio_set_level(BLUE_LED, on);
+	gpio_set_level(GREEN_LED, on);
+	gpio_set_level(RED_LED, on);
+
+}
+
+static void push_btn_cb(void* arg)
+{
+    static uint64_t previous;
+    uint64_t current = xTaskGetTickCount();
+    if ((current - previous) > DEBOUNCE_TIME) {
+        previous = current;
+        button_toggle_state();
+    }
+}
+
+static void button_setup(void)
+{
+	button_handle_t btn_handle = iot_button_create(BUTTON_GPIO, BUTTON_ACTIVE_LEVEL);
+    if (btn_handle) {
+        iot_button_set_evt_cb(btn_handle, BUTTON_CB_RELEASE, push_btn_cb, "RELEASE");
+    }
 }
 
 int toggle_blue(int argc, char** argv)
