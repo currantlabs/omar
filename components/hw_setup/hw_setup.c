@@ -1,10 +1,6 @@
 #include <driver/gpio.h>
 #include "hw_setup.h"
 
-#define BLUE_LED    25
-#define GREEN_LED   26
-#define RED_LED     27 
-
 static void gpio_setup(void);
 
 void omar_setup(void)
