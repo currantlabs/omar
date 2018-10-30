@@ -46,14 +46,20 @@
 
 #ifdef    HW_ESP32_PICOKIT
 
-#define BLUE_LED            23
-#define GREEN_LED           18
-#define RED_LED             5
+#define BLUE_LED            21
+#define GREEN_LED           22
+#define RED_LED              9
 
 #define BUTTON_GPIO          0
 #define BUTTON_ACTIVE_LEVEL  0
 #define DEBOUNCE_TIME       30
 
+// ADI7953 Energy Monitor chip signals
+#define ADI_RESET           10  // Just a GPIO output. (RESET_N_MON)
+#define OMAR_SPIM0_SCK_PIN  18  // SPI clock GPIO pin number. (SPI_MON_CLK)
+#define OMAR_SPIM0_MOSI_PIN 23  // SPI Master Out Slave In GPIO pin number. (SPI_MON_MOSI)
+#define OMAR_SPIM0_MISO_PIN 19  // SPI Master In Slave Out GPIO pin number. (SPI_MON_MISO)
+#define OMAR_SPIM0_SS_PIN    5  // SPI Slave Select GPIO pin number. (SPI_MON_CS)
 
 #endif // HW_ESP32_PICOKIT
 
