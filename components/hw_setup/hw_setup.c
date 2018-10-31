@@ -1,5 +1,6 @@
 #include <driver/gpio.h>
 #include "hw_setup.h"
+#include "adi_spi.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <iot_button.h>
@@ -10,7 +11,8 @@ static void button_setup(void);
 void omar_setup(void)
 {
     gpio_setup();
-	button_setup();
+    button_setup();
+    adi_spi_init();
 }
 
 static void gpio_setup(void)
@@ -51,14 +53,14 @@ static void gpio_setup(void)
 
 static void button_toggle_state(void)
 {
-	static bool on = false;
+    static bool on = false;
 
-	on = !on;
+    on = !on;
 
-	// For now, for the hell of it: turn all leds ON, or OFF:
-	gpio_set_level(BLUE_LED, on);
-	gpio_set_level(GREEN_LED, on);
-	gpio_set_level(RED_LED, on);
+    // For now, for the hell of it: turn all leds ON, or OFF:
+    gpio_set_level(BLUE_LED, on);
+    gpio_set_level(GREEN_LED, on);
+    gpio_set_level(RED_LED, on);
 
 }
 
@@ -74,7 +76,7 @@ static void push_btn_cb(void* arg)
 
 static void button_setup(void)
 {
-	button_handle_t btn_handle = iot_button_create(BUTTON_GPIO, BUTTON_ACTIVE_LEVEL);
+    button_handle_t btn_handle = iot_button_create(BUTTON_GPIO, BUTTON_ACTIVE_LEVEL);
     if (btn_handle) {
         iot_button_set_evt_cb(btn_handle, BUTTON_CB_RELEASE, push_btn_cb, "RELEASE");
     }

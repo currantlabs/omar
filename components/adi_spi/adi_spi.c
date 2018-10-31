@@ -3,30 +3,17 @@
  * adi_spi.c - contains Analog Devices SPI related routines
  */
 
+void adi_spi_init(void)
+{
+	;
+}
+
+#if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
-#include "app_scheduler.h"
-#include "app_error.h"
-#include "app_util_platform.h"
-#include "bsp.h"
-#include "app_timer.h"
-#include "nrf_drv_spi.h"
-#include "nordic_common.h"
 #include "adi_spi.h"
-#include "utils.h"
-#include "nrf_delay.h"
-#include "test.h"
-#include "log.h"
-#include "nrf_drv_gpiote.h"
-#include "console.h"
-#include "meter.h"
-#include "waveform_sample.h"
-#include "energy_monitor.h"
-#include "version.h"
-#include "factory.h"
-#include "peripheral_reset.h"
-#include "calibration.h"
 
 /*
  * This example uses only one instance of the SPI master.
@@ -35,9 +22,11 @@
 
 #define APP_TIMER_PRESCALER      0                      /**< Value of the RTC1 PRESCALER register. */
 
+#if defined    (ADE7953_INTERRUPT_SUPPORT)
 //we're wiring the ADE7953 IRQ (Pin 10 on the P7 of the eval board) to P0.24
 //active low, so we will set it up as HITOLO
 #define ADE7953_IRQ 24
+#endif		// (ADE7953_INTERRUPT_SUPPORT)
 
 static const nrf_drv_spi_t m_spi_master = NRF_DRV_SPI_INSTANCE(1);
 
@@ -443,6 +432,8 @@ void adi_sw_reset(void)
     spi_write_reg(CONFIG, buff);
 }
 
+#if defined    (ADE7953_INTERRUPT_SUPPORT)
+
 /*
  * enable_waveform_sampling_interrupt - enables or disables an interrupt
  * when new waveform sampling data is acquired
@@ -489,6 +480,9 @@ void adi_enable_energy_interrupts(bool enable)
     spi_write_reg(IRQENB, buff);
 
 }
+
+#endif		// (ADE7953_INTERRUPT_SUPPORT)
+
 
 /*
  * enable_lca_mode - enable or disable active energy line cycle accumulation mode on
@@ -848,3 +842,6 @@ static int factory_7953(void)
 
 
 /** @} */
+
+#endif		// (__OMAR_AD7953_SPI_SUPPORT_READY__)
+

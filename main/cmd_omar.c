@@ -18,6 +18,8 @@ static void register_toggle_green();
 static void register_toggle_red();
 static void register_toggle();
 
+static void register_7953();
+
 void register_omar()
 {
     register_toggle_blue();
@@ -25,6 +27,8 @@ void register_omar()
     register_toggle_red();
 
     register_toggle();
+
+    register_7953();
 }
 
 // Struct used by the LED toggle function
@@ -120,3 +124,51 @@ static void register_toggle_red()
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
+// Struct used by the LED toggle function
+static struct {
+    struct arg_str *cmd;
+    struct arg_end *end;
+} ad7953_args;
+
+
+static int ad7953(int argc, char** argv)
+{
+    int nerrors = arg_parse(argc, argv, (void**) &ad7953_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, ad7953_args.end, argv[0]);
+        return 1;
+    }
+
+    char const *cmd = ad7953_args.cmd->sval[0];
+
+    if (strcmp(cmd, "hwreset") == 0) {
+        ESP_LOGI(__func__, "perform a hardware reset");
+    } else if (strcmp(cmd, "swreset") == 0) {
+        ESP_LOGI(__func__, "perform a software reset");
+    } else {
+        ESP_LOGI(__func__, "'%s' is not a recognized AD7953 command - please enter either \"hwreset\" or \"swreset\"",
+                 cmd);
+    }
+
+    return 0;
+}
+
+static void register_7953(void)
+{
+    ad7953_args.cmd = arg_str0(
+        NULL, 
+        NULL, 
+        "<hwreset|swreset>", 
+        "hwreset  -- perform a hardware reset; swreset  -- perform a software reset");
+
+    ad7953_args.end = arg_end(1);
+
+    const esp_console_cmd_t cmd = {
+        .command = "7953",
+        .help = "Command the AD7953 to perform some basic operations",
+        .hint = NULL,
+        .func = &ad7953,
+        .argtable = &ad7953_args
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}

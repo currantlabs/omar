@@ -61,6 +61,9 @@
 #define OMAR_SPIM0_MISO_PIN 19  // SPI Master In Slave Out GPIO pin number. (SPI_MON_MISO)
 #define OMAR_SPIM0_SS_PIN    5  // SPI Slave Select GPIO pin number. (SPI_MON_CS)
 
+// Don't implement AD7953 interrupt support just yet:
+//#define ADE7953_INTERRUPT_SUPPORT
+
 #endif // HW_ESP32_PICOKIT
 
 // Configure the hardware

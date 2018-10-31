@@ -1,5 +1,11 @@
-#ifndef ADI_SPI_H
-#define ADI_SPI_H
+#pragma once
+
+// Configure the SPI connection to the AD7953
+void adi_spi_init(void);
+
+
+#if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
+
 
 #include <stdbool.h>
 
@@ -95,4 +101,5 @@ void adi_power_up_register_sequence(void);
 void adi_enable_energy_interrupts(bool enable);
 
 
-#endif //ADI_SPI_H
+#endif      // (__OMAR_AD7953_SPI_SUPPORT_READY__)
+
