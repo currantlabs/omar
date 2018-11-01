@@ -2,9 +2,8 @@
 
 // Configure the SPI connection to the AD7953
 void adi_spi_init(void);
+void factory_7953(void);
 
-
-#if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
 
 
 #include <stdbool.h>
@@ -81,6 +80,8 @@ typedef enum {
 
     AP_NOLOAD,
 } SpiCmdNameT;
+
+#if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
 
 int adi_spi_init(void);
 int adi_spi_reinit(void);

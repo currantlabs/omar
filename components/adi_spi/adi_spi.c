@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "esp_log.h"
 #include "esp_system.h"
 #include "driver/spi_master.h"
 
@@ -14,7 +15,8 @@
 #include "hw_setup.h"
 #include "adi_spi.h"
 
-#if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
+static spi_device_handle_t m_spi_master;
+
 
 
 /*
@@ -28,9 +30,7 @@
 //we're wiring the ADE7953 IRQ (Pin 10 on the P7 of the eval board) to P0.24
 //active low, so we will set it up as HITOLO
 #define ADE7953_IRQ 24
-#endif		// (ADE7953_INTERRUPT_SUPPORT)
-
-static const nrf_drv_spi_t m_spi_master = NRF_DRV_SPI_INSTANCE(1);
+#endif      // (ADE7953_INTERRUPT_SUPPORT)
 
 //all spi transactions have 8, 16, 24, or 32 bit payloads
 #define SPI_1BYTE_TRANSACTION_LEN (4)
@@ -221,9 +221,7 @@ static uint8_t m_ap_noload_pkt[RO] =        {0x03, 0x03};
 //receive buffer
 static uint8_t m_rx_data[SPI_4BYTE_TRANSACTION_LEN] = {0}; /* make this the largest transaction size */
 
-static int console_command(int argc, char *argv[]);
 static int test(void);
-static int factory_7953(void);
 
 typedef struct {
     SpiCmdNameT name;
@@ -311,7 +309,7 @@ static SpiCmdT m_spi_commands[] = {
 
 SpiCmdT m_last_read_cmd;
 
-static volatile bool m_transfer_completed = true; /**< A flag to inform about completed transfer. */
+#if defined	   (WAVEFORM_SAMPLING_SUPPORT)
 static bool m_waveform_sampling_configured = false;
 
 
@@ -321,8 +319,7 @@ static bool m_waveform_sampling_configured = false;
 //The data ready signal goes high for a period of 280ns before automatically
 //returning low, so we will set it up as LOTOHI.
 static int ZX_IRQ;
-
-#endif		// (__OMAR_AD7953_SPI_SUPPORT_READY__)
+#endif      // (WAVEFORM_SAMPLING_SUPPORT)
 
 static volatile bool m_transfer_completed = true; /**< A flag to inform about completed transfer. */
 
@@ -335,7 +332,7 @@ static volatile bool m_transfer_completed = true; /**< A flag to inform about co
 static void spi_master_event_handler(spi_transaction_t *cur_trans)
 {
     //uint32_t err_code = NRF_SUCCESS;
-	if (cur_trans != NULL) {
+    if (cur_trans != NULL) {
 
         // Inform application that transfer is completed.
         m_transfer_completed = true;
@@ -344,48 +341,6 @@ static void spi_master_event_handler(spi_transaction_t *cur_trans)
 }
 
 #if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
-
-
-static void spi_send_recv(SpiCmdNameT send_cmd, uint8_t *data)
-{
-
-    SpiCmdT cmd = m_spi_commands[send_cmd];
-
-    uint16_t len = cmd.pkt_size;
-    uint8_t *p_tx_data = cmd.pkt;
-
-    memset(m_rx_data, 0, sizeof(m_rx_data));
-    m_transfer_completed = false;
-
-    if (data != NULL) {
-        //this is a write command - copy data to write into buffer
-        p_tx_data[2] = SPI_WRITE;
-        memcpy(p_tx_data + 3, data, len - 3);
-    } else {
-        //this is a read command - data tx buffer doesn't matter
-        m_last_read_cmd = cmd;
-        p_tx_data[2] = SPI_READ;
-    }
-
-    uint32_t err_code;
-    bool failed = false;
-    uint32_t t;
-    utils_timer_cnt_get(&t);
-    //printf("t=%u\r\n", (unsigned)t);
-
-    do {
-        err_code = nrf_drv_spi_transfer(&m_spi_master, p_tx_data, len, m_rx_data, len);
-        //utils_timer_cnt_diff(t);
-        if (err_code != NRF_SUCCESS) {
-            failed = true;
-        }
-    } while (err_code != NRF_SUCCESS);
-    if (failed) {
-        LOG(LOG_LEVEL_ERROR, "adi_spi nrf_drv_spi_transfer failed: ");
-        utils_timer_cnt_diff(t);
-    }
-    //APP_ERROR_CHECK(err_code);
-}
 
 
 /*
@@ -486,7 +441,7 @@ void adi_enable_energy_interrupts(bool enable)
 
 }
 
-#endif		// (ADE7953_INTERRUPT_SUPPORT)
+#endif      // (ADE7953_INTERRUPT_SUPPORT)
 
 
 /*
@@ -527,6 +482,7 @@ void set_gain(SpiCmdNameT reg, uint32_t gain)
     LOG(LOG_LEVEL_DEBUG, "set %s to 0x%08x\r\n", get_reg_name(reg), gain);
 }
 
+#if defined	   (WAVEFORM_SAMPLING_SUPPORT)
 /*
  * writes to ALT_OUTPUT register to set the unlatched waveform sampling signal
  * to output on Pin 1 (ZX pin)
@@ -546,6 +502,9 @@ void waveform_sampling_pin_config(bool enable)
         m_waveform_sampling_configured = false;
     }
 }
+
+#endif      // (WAVEFORM_SAMPLING_SUPPORT)
+
 
 /*
  * writes to ALT_OUTPUT register to set IRQ (for Channel B)
@@ -592,7 +551,7 @@ void irq_b_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
     }
 }
 
-#endif		// (__OMAR_AD7953_SPI_SUPPORT_READY__)
+#endif      // (__OMAR_AD7953_SPI_SUPPORT_READY__)
 
 void adi_spi_init(void)
 {
@@ -604,14 +563,14 @@ void adi_spi_init(void)
         .sclk_io_num=OMAR_SPIM0_SCK_PIN,
         .quadwp_io_num=-1,
         .quadhd_io_num=-1,
-        .max_transfer_sz=0	// defaults to 4094 if this is 0
+        .max_transfer_sz=0  // defaults to 4094 if this is 0
     };
     spi_device_interface_config_t devcfg={
         .clock_speed_hz=4*1000*1000,           //Clock out at 4 MHz
         .mode=0,                                //SPI mode 0
         .spics_io_num=OMAR_SPIM0_SS_PIN,        //CS pin
         .queue_size=7,                          //We want to be able to queue 7 transactions at a time
-        .post_cb=spi_master_event_handler,  	//Called after a spi xmission completes (called in interrupt context)
+        .post_cb=spi_master_event_handler,      //Called after a spi xmission completes (called in interrupt context)
     };
     //Initialize the SPI bus
     ret=spi_bus_initialize(HSPI_HOST, &buscfg, 1);
@@ -619,79 +578,13 @@ void adi_spi_init(void)
     //Attach the LCD to the SPI bus
     ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
     ESP_ERROR_CHECK(ret);
+    m_spi_master = spi;
     //Initialize the AD7953:
     //ad7953_init(spi); // (vjc) add this later
 
 }
 
 #if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
-
-/**@brief Function for application main entry. Does not return. */
-int adi_spi_init(void)
-{
-    console_register_cmd("7953", "ADI 7953 related commands", console_command);
-
-    // Register a factory preassy test:
-    factory_register_cmd(FACTORY_PREASSY__CHECK7953,
-                         FACTORY_FUNC__SIMPLE,
-    (factory_fptrT ) {
-        .simple_cmd = factory_7953
-    });
-
-
-    int sck, mosi, miso, ss;
-
-    if (hw_version_is_omar()) {
-        sck = OMAR_SPIM0_SCK_PIN;
-        mosi = OMAR_SPIM0_MOSI_PIN;
-        miso = OMAR_SPIM0_MISO_PIN;
-        ss = OMAR_SPIM0_SS_PIN;
-    } else {
-        sck = WALLACE_SPIM0_SCK_PIN;
-        mosi = WALLACE_SPIM0_MOSI_PIN;
-        miso = WALLACE_SPIM0_MISO_PIN;
-        ss = WALLACE_SPIM0_SS_PIN;
-    }
-
-    // Setup bsp module.
-    nrf_drv_spi_config_t const config = {
-        .sck_pin  = sck,
-        .mosi_pin = mosi,
-        .miso_pin = miso,
-        .ss_pin   = ss,
-        .irq_priority = APP_IRQ_PRIORITY_HIGH,
-        .orc          = 0xCC,
-        .frequency    = NRF_DRV_SPI_FREQ_4M,
-        .mode         = NRF_DRV_SPI_MODE_0,
-        .bit_order    = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST,
-    };
-    ret_code_t err_code = nrf_drv_spi_init(&m_spi_master, &config, spi_master_event_handler, NULL);
-    APP_ERROR_CHECK(err_code);
-
-    if (hw_version() <= HW_VERSION_2_0) {
-        ZX_IRQ = HW_V2_ZX_GPIO;
-    } else {
-        ZX_IRQ = HW_V3_ZX_GPIO;
-    }
-
-    //set up IRQ input (Channel A interrupts)
-    nrf_drv_gpiote_in_config_t in_config = GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
-    in_config.pull = NRF_GPIO_PIN_PULLUP;
-    err_code = nrf_drv_gpiote_in_init(ADE7953_IRQ, &in_config, irq_a_handler);
-    APP_ERROR_CHECK(err_code);
-    nrf_drv_gpiote_in_event_enable(ADE7953_IRQ, true);
-
-    //set up ZX input (Channel B interrupts)
-    nrf_drv_gpiote_in_config_t dr_config = GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
-    dr_config.pull = NRF_GPIO_PIN_PULLUP;
-    err_code = nrf_drv_gpiote_in_init(ZX_IRQ, &dr_config, irq_b_handler);
-    APP_ERROR_CHECK(err_code);
-    nrf_drv_gpiote_in_event_enable(ZX_IRQ, true);
-
-    test_register_func("7953", test);
-
-    return 0;
-}
 
 //called after a hardware reset, to reinitialize chip to a known state
 int adi_spi_reinit(void)
@@ -747,6 +640,53 @@ int set_pgagain(uint8_t gain)
     return 0;
 }
 
+#endif      // (__OMAR_AD7953_SPI_SUPPORT_READY__)
+
+static void spi_send_recv(SpiCmdNameT send_cmd, uint8_t *data)
+{
+
+#ifdef NOWAY
+
+    SpiCmdT cmd = m_spi_commands[send_cmd];
+
+    uint16_t len = cmd.pkt_size;
+    uint8_t *p_tx_data = cmd.pkt;
+
+    memset(m_rx_data, 0, sizeof(m_rx_data));
+    m_transfer_completed = false;
+
+    if (data != NULL) {
+        //this is a write command - copy data to write into buffer
+        p_tx_data[2] = SPI_WRITE;
+        memcpy(p_tx_data + 3, data, len - 3);
+    } else {
+        //this is a read command - data tx buffer doesn't matter
+        m_last_read_cmd = cmd;
+        p_tx_data[2] = SPI_READ;
+    }
+
+    uint32_t err_code;
+    bool failed = false;
+    uint32_t t;
+    utils_timer_cnt_get(&t);
+    //printf("t=%u\r\n", (unsigned)t);
+
+    do {
+        err_code = nrf_drv_spi_transfer(&m_spi_master, p_tx_data, len, m_rx_data, len);
+        //utils_timer_cnt_diff(t);
+        if (err_code != NRF_SUCCESS) {
+            failed = true;
+        }
+    } while (err_code != NRF_SUCCESS);
+    if (failed) {
+        LOG(LOG_LEVEL_ERROR, "adi_spi nrf_drv_spi_transfer failed: ");
+        utils_timer_cnt_diff(t);
+    }
+    //APP_ERROR_CHECK(err_code);
+#endif // NOWAY
+
+}
+
 /*
  * spi_read_reg - read data from specified register into provided buff.
  * Returns number of bytes read.
@@ -760,7 +700,7 @@ uint32_t spi_read_reg(SpiCmdNameT reg, uint8_t *buff)
 {
     //TESTING!!
     if (!m_transfer_completed) {
-        LOG(LOG_LEVEL_DEBUG, "!!  reg=%d\r\n", reg);
+        ESP_LOGI(__func__, "!!  reg=%d\r\n", reg);
         return -1;
     }
     spi_send_recv(reg, NULL);
@@ -788,17 +728,18 @@ char *get_reg_name(SpiCmdNameT reg)
     return cmd.name_str;
 }
 
+
 static int test(void)
 {
     uint8_t buff[4];
 
     //test reading config
-    LOG(LOG_LEVEL_DEBUG, "CONFIG: ");
+    ESP_LOGI(__func__, "CONFIG: ");
     spi_read_reg(CONFIG, buff);
     if (buff[0] == 0x80 && buff[1] == 0x04) {
-        LOG(LOG_LEVEL_DEBUG, "[OK]\r\n");
+        ESP_LOGI(__func__, "[OK]");
     } else {
-        LOG(LOG_LEVEL_DEBUG, "[FAILED]\r\n");
+        ESP_LOGI(__func__, "[FAILED]");
         return -1;
     }
 
@@ -817,70 +758,39 @@ static int test(void)
     spi_write_reg(AP_NOLOAD, buff);
     memset(buff, 0, sizeof(buff));
 
-    LOG(LOG_LEVEL_DEBUG, "AP_NOLOAD: ");
+    ESP_LOGI(__func__, "AP_NOLOAD: ");
     spi_read_reg(AP_NOLOAD, buff);
 
 
     if (buff[0] == TEST_BYTE_0 && buff[1] == TEST_BYTE_1 && buff[2] == TEST_BYTE_2 && buff[3] == TEST_BYTE_3) {
-        LOG(LOG_LEVEL_DEBUG, "[OK]\r\n");
+        ESP_LOGI(__func__, "[OK]");
     } else {
-        LOG(LOG_LEVEL_DEBUG, "[FAILED]\r\n");
+        ESP_LOGI(__func__, "[FAILED]");
         return -1;
     }
 
 
+#if defined    (METER_SUPPORT)
     float v = meter_get_voltage();
-    LOG(LOG_LEVEL_DEBUG, "voltage (rms): %f V\r\n", v);
-
+    ESP_LOGI(__func__, "voltage (rms): %f V", v);
+#else
+    ESP_LOGI(__func__, "voltage (rms): %f V", 666.66);
+#endif      // (METER_SUPPORT)
+	
     return 0;
 }
 
-static void usage(void)
-{
-    LOG(LOG_LEVEL_DEBUG, "usage: hwreset  -- perform a hardware reset\r\n");
-    LOG(LOG_LEVEL_DEBUG, "       swreset  -- perform a software reset\r\n");
-    LOG(LOG_LEVEL_DEBUG, "       irqstat  -- dump irqstat register\r\n");
-    LOG(LOG_LEVEL_DEBUG, "       irqena   -- dump irqena register\r\n");
-    LOG(LOG_LEVEL_DEBUG, "    rstirqstat  -- dump and reset irqstat register\r\n");
-}
 
-static int console_command(int argc, char *argv[])
+void factory_7953(void)
 {
-    if (argc == 1) {
-        if (strcmp(argv[0], "hwreset") == 0) {
-            peripheral_reset();
-        }
-        if (strcmp(argv[0], "swreset") == 0) {
-            adi_sw_reset();
-        } else if (strcmp(argv[0], "irqstat") == 0) {
-            adi_dump_reg(IRQSTATA);
-            adi_dump_reg(IRQSTATB);
-        } else if (strcmp(argv[0], "irqena") == 0) {
-            adi_dump_reg(IRQENA);
-            adi_dump_reg(IRQENB);
-        } else if (strcmp(argv[0], "rstirqstat") == 0) {
-            adi_dump_reg(RSTIRQSTATA);
-            adi_dump_reg(RSTIRQSTATB);
-        }
-    } else {
-        usage();
-    }
-    return 0;
-}
-
-static int factory_7953(void)
-{
-
     if (test()) {
-        return FACTORY_TEST_STATUS__FAILED;
-    }
-
-    return FACTORY_TEST_STATUS__PASSED;
-
+		ESP_LOGI(__func__, "FACTORY_TEST_STATUS__FAILED");
+	} else {
+		ESP_LOGI(__func__, "FACTORY_TEST_STATUS__PASSED");
+	}	
 }
 
 
 /** @} */
 
-#endif		// (__OMAR_AD7953_SPI_SUPPORT_READY__)
 

@@ -10,6 +10,7 @@
 #include "esp_log.h"
 #include "esp_console.h"
 #include "hw_setup.h"
+#include "adi_spi.h"
 #include "sdkconfig.h"
 
 
@@ -145,6 +146,8 @@ static int ad7953(int argc, char** argv)
         ESP_LOGI(__func__, "perform a hardware reset");
     } else if (strcmp(cmd, "swreset") == 0) {
         ESP_LOGI(__func__, "perform a software reset");
+    } else if (strcmp(cmd, "test") == 0) {
+        factory_7953();
     } else {
         ESP_LOGI(__func__, "'%s' is not a recognized AD7953 command - please enter either \"hwreset\" or \"swreset\"",
                  cmd);
@@ -158,8 +161,8 @@ static void register_7953(void)
     ad7953_args.cmd = arg_str0(
         NULL, 
         NULL, 
-        "<hwreset|swreset>", 
-        "hwreset  -- perform a hardware reset; swreset  -- perform a software reset");
+        "<hwreset|swreset|test>", 
+        "hwreset  -- perform a hardware reset; swreset  -- perform a software reset; test -- run factory test");
 
     ad7953_args.end = arg_end(1);
 
