@@ -322,7 +322,7 @@ static bool m_waveform_sampling_configured = false;
 //returning low, so we will set it up as LOTOHI.
 static int ZX_IRQ;
 
-#endif		// (ADE7953_INTERRUPT_SUPPORT)
+#endif		// (__OMAR_AD7953_SPI_SUPPORT_READY__)
 
 static volatile bool m_transfer_completed = true; /**< A flag to inform about completed transfer. */
 
