@@ -7,13 +7,16 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "driver/spi_master.h"
 
 
-#include "hw_setup.h"
 #include "adi_spi.h"
+#include "utils.h"
+#include "hw_setup.h"
 
 static spi_device_handle_t m_spi_master;
 
@@ -340,7 +343,6 @@ static void spi_master_event_handler(spi_transaction_t *cur_trans)
     }
 }
 
-#if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
 
 
 /*
@@ -479,7 +481,7 @@ void set_gain(SpiCmdNameT reg, uint32_t gain)
     buff[2] = gain & 0xff;
 
     spi_write_reg(reg, buff);
-    LOG(LOG_LEVEL_DEBUG, "set %s to 0x%08x\r\n", get_reg_name(reg), gain);
+    ESP_LOGI(__func__, "set %s to 0x%08x\r\n", get_reg_name(reg), gain);
 }
 
 #if defined	   (WAVEFORM_SAMPLING_SUPPORT)
@@ -505,6 +507,8 @@ void waveform_sampling_pin_config(bool enable)
 
 #endif      // (WAVEFORM_SAMPLING_SUPPORT)
 
+
+#if defined    (ADE7953_INTERRUPT_SUPPORT)
 
 /*
  * writes to ALT_OUTPUT register to set IRQ (for Channel B)
@@ -551,7 +555,8 @@ void irq_b_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
     }
 }
 
-#endif      // (__OMAR_AD7953_SPI_SUPPORT_READY__)
+#endif      // (ADE7953_INTERRUPT_SUPPORT)
+
 
 void adi_spi_init(void)
 {
@@ -584,13 +589,14 @@ void adi_spi_init(void)
 
 }
 
-#if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
-
 //called after a hardware reset, to reinitialize chip to a known state
 int adi_spi_reinit(void)
 {
-    nrf_delay_ms(10);
-    irq_pin_config();
+    vTaskDelay(100 / portTICK_RATE_MS);
+    
+#if defined    (ADE7953_INTERRUPT_SUPPORT)
+	irq_pin_config();
+#endif      // (ADE7953_INTERRUPT_SUPPORT)
 
     //reset ADE7953 interrupts
     uint8_t buff[3];
@@ -599,10 +605,14 @@ int adi_spi_reinit(void)
 
     //initialize 7953
     adi_power_up_register_sequence();
+#if defined    (ADE7953_INTERRUPT_SUPPORT)
     adi_enable_energy_interrupts(true);
+#endif      // (ADE7953_INTERRUPT_SUPPORT)
 
+#if defined    (ADE7953_CALIBRATION_SUPPORT)
     //re-set calibration constants
     calibration_init();
+#endif      // (ADE7953_CALIBRATION_SUPPORT)
 
     return 0;
 }
@@ -629,18 +639,16 @@ int set_pgagain(uint8_t gain)
         gain = 5;
         break;
     default:
-        LOG(LOG_LEVEL_FATAL, "invalid PGA_GAIN!\r\n");
+        ESP_LOGI(__func__, "invalid PGA_GAIN!");
         return -1;
     }
     spi_write_reg(PGA_IA, &gain);  //set default gain
     spi_write_reg(PGA_IB, &gain);  //set default gain
-    LOG(LOG_LEVEL_DEBUG, "set gain to %d\r\n", gain);
+    ESP_LOGI(__func__, "set gain to %d", gain);
 
 
     return 0;
 }
-
-#endif      // (__OMAR_AD7953_SPI_SUPPORT_READY__)
 
 static void spi_send_recv(SpiCmdNameT send_cmd, uint8_t *data)
 {
@@ -679,7 +687,7 @@ static void spi_send_recv(SpiCmdNameT send_cmd, uint8_t *data)
         }
     } while (err_code != NRF_SUCCESS);
     if (failed) {
-        LOG(LOG_LEVEL_ERROR, "adi_spi nrf_drv_spi_transfer failed: ");
+        ESP_LOGI(__func__, "adi_spi nrf_drv_spi_transfer failed: ");
         utils_timer_cnt_diff(t);
     }
     //APP_ERROR_CHECK(err_code);

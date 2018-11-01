@@ -1,12 +1,10 @@
 #pragma once
 
-// Configure the SPI connection to the AD7953
-void adi_spi_init(void);
-void factory_7953(void);
-
-
-
+#include <stdio.h>
+#include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
+
 
 typedef enum {
     UNLOCK,
@@ -81,13 +79,18 @@ typedef enum {
     AP_NOLOAD,
 } SpiCmdNameT;
 
-#if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
+// Configure the SPI connection to the AD7953
+void adi_spi_init(void);
+void factory_7953(void);
 
-int adi_spi_init(void);
-int adi_spi_reinit(void);
 uint32_t spi_read_reg(SpiCmdNameT reg, uint8_t *buff);
 void spi_write_reg(SpiCmdNameT reg, uint8_t *buff);
 char *get_reg_name(SpiCmdNameT reg);
+
+
+#if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
+
+int adi_spi_reinit(void);
 
 void enable_hpf(bool enable);
 void adi_sw_reset(void);
