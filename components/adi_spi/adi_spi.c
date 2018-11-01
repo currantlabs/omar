@@ -3,17 +3,19 @@
  * adi_spi.c - contains Analog Devices SPI related routines
  */
 
-void adi_spi_init(void)
-{
-	;
-}
-
-#if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
-
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+
+#include "esp_system.h"
+#include "driver/spi_master.h"
+
+
+#include "hw_setup.h"
 #include "adi_spi.h"
+
+#if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
+
 
 /*
  * This example uses only one instance of the SPI master.
@@ -312,11 +314,17 @@ SpiCmdT m_last_read_cmd;
 static volatile bool m_transfer_completed = true; /**< A flag to inform about completed transfer. */
 static bool m_waveform_sampling_configured = false;
 
+
+
 //we're wiring the ADE7953 ZX (Pin 1 on the P7 of the eval board) to the Nordic.
 //(needs to be re-mapped depending on HW version)
 //The data ready signal goes high for a period of 280ns before automatically
 //returning low, so we will set it up as LOTOHI.
 static int ZX_IRQ;
+
+#endif		// (ADE7953_INTERRUPT_SUPPORT)
+
+static volatile bool m_transfer_completed = true; /**< A flag to inform about completed transfer. */
 
 /**@brief Function for SPI master event callback.
  *
@@ -324,22 +332,19 @@ static int ZX_IRQ;
  *
  * @param[in] spi_master_evt    SPI master driver event.
  */
-static void spi_master_event_handler(nrf_drv_spi_evt_t const * p_event,
-                                     void *                    p_context)
+static void spi_master_event_handler(spi_transaction_t *cur_trans)
 {
     //uint32_t err_code = NRF_SUCCESS;
-    switch (p_event->type) {
-    case NRF_DRV_SPI_EVENT_DONE:
+	if (cur_trans != NULL) {
 
         // Inform application that transfer is completed.
         m_transfer_completed = true;
-        break;
 
-    default:
-        // No implementation needed.
-        break;
     }
 }
+
+#if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
+
 
 static void spi_send_recv(SpiCmdNameT send_cmd, uint8_t *data)
 {
@@ -586,6 +591,40 @@ void irq_b_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
         app_sched_event_put(NULL, 0, handle_7953_irq);
     }
 }
+
+#endif		// (__OMAR_AD7953_SPI_SUPPORT_READY__)
+
+void adi_spi_init(void)
+{
+    esp_err_t ret;
+    spi_device_handle_t spi;
+    spi_bus_config_t buscfg={
+        .miso_io_num=OMAR_SPIM0_MISO_PIN,
+        .mosi_io_num=OMAR_SPIM0_MOSI_PIN,
+        .sclk_io_num=OMAR_SPIM0_SCK_PIN,
+        .quadwp_io_num=-1,
+        .quadhd_io_num=-1,
+        .max_transfer_sz=0	// defaults to 4094 if this is 0
+    };
+    spi_device_interface_config_t devcfg={
+        .clock_speed_hz=4*1000*1000,           //Clock out at 4 MHz
+        .mode=0,                                //SPI mode 0
+        .spics_io_num=OMAR_SPIM0_SS_PIN,        //CS pin
+        .queue_size=7,                          //We want to be able to queue 7 transactions at a time
+        .post_cb=spi_master_event_handler,  	//Called after a spi xmission completes (called in interrupt context)
+    };
+    //Initialize the SPI bus
+    ret=spi_bus_initialize(HSPI_HOST, &buscfg, 1);
+    ESP_ERROR_CHECK(ret);
+    //Attach the LCD to the SPI bus
+    ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
+    ESP_ERROR_CHECK(ret);
+    //Initialize the AD7953:
+    //ad7953_init(spi); // (vjc) add this later
+
+}
+
+#if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
 
 /**@brief Function for application main entry. Does not return. */
 int adi_spi_init(void)
