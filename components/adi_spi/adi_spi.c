@@ -312,7 +312,7 @@ static SpiCmdT m_spi_commands[] = {
 
 SpiCmdT m_last_read_cmd;
 
-#if defined	   (WAVEFORM_SAMPLING_SUPPORT)
+#if defined    (WAVEFORM_SAMPLING_SUPPORT)
 static bool m_waveform_sampling_configured = false;
 
 
@@ -484,7 +484,7 @@ void set_gain(SpiCmdNameT reg, uint32_t gain)
     ESP_LOGI(__func__, "set %s to 0x%08x\r\n", get_reg_name(reg), gain);
 }
 
-#if defined	   (WAVEFORM_SAMPLING_SUPPORT)
+#if defined    (WAVEFORM_SAMPLING_SUPPORT)
 /*
  * writes to ALT_OUTPUT register to set the unlatched waveform sampling signal
  * to output on Pin 1 (ZX pin)
@@ -595,7 +595,7 @@ int adi_spi_reinit(void)
     vTaskDelay(100 / portTICK_RATE_MS);
     
 #if defined    (ADE7953_INTERRUPT_SUPPORT)
-	irq_pin_config();
+    irq_pin_config();
 #endif      // (ADE7953_INTERRUPT_SUPPORT)
 
     //reset ADE7953 interrupts
@@ -652,6 +652,34 @@ int set_pgagain(uint8_t gain)
 
 static void spi_send_recv(SpiCmdNameT send_cmd, uint8_t *data)
 {
+
+    SpiCmdT cmd = m_spi_commands[send_cmd];
+
+    uint16_t len = cmd.pkt_size;
+    uint8_t *p_tx_data = cmd.pkt;
+
+    esp_err_t ret;
+    spi_transaction_t t;
+    memset(&t, 0, sizeof(t));       //Zero out the transaction
+
+    m_transfer_completed = false;
+
+    if (data != NULL) {
+        //this is a write command - copy data to write into buffer
+        p_tx_data[2] = SPI_WRITE;
+        memcpy(p_tx_data + 3, data, len - 3);
+    } else {
+        //this is a read command - data tx buffer doesn't matter
+        m_last_read_cmd = cmd;
+        p_tx_data[2] = SPI_READ;
+    }
+
+    t.length=len;                                       //Command length
+    t.tx_buffer=p_tx_data;                              //The data is the cmd itself
+    t.user=(void*)0;                                    //D/C needs to be set to 0
+    ret=spi_device_polling_transmit(m_spi_master, &t);  //Transmit!
+    assert(ret==ESP_OK);                                //Should have had no issues.
+    
 
 #ifdef NOWAY
 
@@ -784,7 +812,7 @@ static int test(void)
 #else
     ESP_LOGI(__func__, "voltage (rms): %f V", 666.66);
 #endif      // (METER_SUPPORT)
-	
+    
     return 0;
 }
 
@@ -792,10 +820,10 @@ static int test(void)
 void factory_7953(void)
 {
     if (test()) {
-		ESP_LOGI(__func__, "FACTORY_TEST_STATUS__FAILED");
-	} else {
-		ESP_LOGI(__func__, "FACTORY_TEST_STATUS__PASSED");
-	}	
+        ESP_LOGI(__func__, "FACTORY_TEST_STATUS__FAILED");
+    } else {
+        ESP_LOGI(__func__, "FACTORY_TEST_STATUS__PASSED");
+    }   
 }
 
 
