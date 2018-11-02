@@ -87,6 +87,7 @@ uint32_t spi_read_reg(SpiCmdNameT reg, uint8_t *buff);
 void spi_write_reg(SpiCmdNameT reg, uint8_t *buff);
 char *get_reg_name(SpiCmdNameT reg);
 void adi_hw_reset(void);
+void adi_spi_setup(void);
 
 
 #if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)

@@ -332,7 +332,6 @@ static volatile bool m_transfer_completed = true; /**< A flag to inform about co
  *
  * @param[in] spi_master_evt    SPI master driver event.
  */
-#ifdef NOWAY
 static void spi_master_event_handler(spi_transaction_t *cur_trans)
 {
     //uint32_t err_code = NRF_SUCCESS;
@@ -343,7 +342,6 @@ static void spi_master_event_handler(spi_transaction_t *cur_trans)
 
     }
 }
-#endif // NOWAY
 
 /*
  * power_up_register_sequence - this sequence is apparently required for
@@ -560,52 +558,13 @@ void irq_b_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 
 void adi_spi_init(void)
 {
-#ifdef NOWAY
-    esp_err_t ret;
-    spi_device_handle_t spi;
-    spi_bus_config_t buscfg={
-        .miso_io_num=OMAR_SPIM0_MISO_PIN,
-        .mosi_io_num=OMAR_SPIM0_MOSI_PIN,
-        .sclk_io_num=OMAR_SPIM0_SCK_PIN,
-        .quadwp_io_num=-1,
-        .quadhd_io_num=-1,
-        .max_transfer_sz=0  // defaults to 4094 if this is 0
-    };
-    spi_device_interface_config_t devcfg={
-        .clock_speed_hz=4*1000*1000,           //Clock out at 4 MHz
-        .mode=0,                                //SPI mode 0
-        .spics_io_num=OMAR_SPIM0_SS_PIN,        //CS pin
-        .queue_size=7,                          //We want to be able to queue 7 transactions at a time
-        .post_cb=spi_master_event_handler,      //Called after a spi xmission completes (called in interrupt context)
-    };
-
-#endif // NOWAY
-
-	printf("%s(): 01\n", __func__);
-
     //First, hardware reset the ADI7953:
 	adi_hw_reset();
 
-	printf("%s(): 02\n", __func__);
+	// Next, configure the SPI bus:
+	adi_spi_setup();
 
-#ifdef NOWAY
-    //Initialize the SPI bus
-    ret=spi_bus_initialize(HSPI_HOST, &buscfg, 1);
-    ESP_ERROR_CHECK(ret);
 
-	//printf("%s(): 03\n", __func__);
-
-    //Attach the ADI7953 to the SPI bus
-    ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
-    ESP_ERROR_CHECK(ret);
-
-	//printf("%s(): 04\n", __func__);
-
-    m_spi_master = spi;
-    //Initialize the AD7953:
-    //ad7953_init(spi); // (vjc) add this later
-
-#endif // NOWAY
 }
 
 //called after a hardware reset, to reinitialize chip to a known state
@@ -853,6 +812,46 @@ void adi_hw_reset(void)
     gpio_set_level(ADI_RESET, true);
 
 }
+
+void adi_spi_setup(void)
+{
+    esp_err_t ret;
+    spi_device_handle_t spi;
+    spi_bus_config_t buscfg={
+        .miso_io_num=OMAR_SPIM0_MISO_PIN,
+        .mosi_io_num=OMAR_SPIM0_MOSI_PIN,
+        .sclk_io_num=OMAR_SPIM0_SCK_PIN,
+        .quadwp_io_num=-1,
+        .quadhd_io_num=-1,
+        .max_transfer_sz=0  // defaults to 4094 if this is 0
+    };
+    spi_device_interface_config_t devcfg={
+        .clock_speed_hz=4*1000*1000,           //Clock out at 4 MHz
+        .mode=0,                                //SPI mode 0
+        .spics_io_num=OMAR_SPIM0_SS_PIN,        //CS pin
+        .queue_size=7,                          //We want to be able to queue 7 transactions at a time
+        .post_cb=spi_master_event_handler,      //Called after a spi xmission completes (called in interrupt context)
+    };
+
+    //Initialize the SPI bus
+    ret=spi_bus_initialize(HSPI_HOST, &buscfg, 1);
+    ESP_ERROR_CHECK(ret);
+
+	//printf("%s(): 03\n", __func__);
+
+    //Attach the ADI7953 to the SPI bus
+    ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
+    ESP_ERROR_CHECK(ret);
+
+	//printf("%s(): 04\n", __func__);
+
+    m_spi_master = spi;
+    //Initialize the AD7953:
+    //ad7953_init(spi); // (vjc) add this later
+
+}
+
+
 
 /** @} */
 
