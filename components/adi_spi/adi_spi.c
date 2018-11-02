@@ -577,6 +577,12 @@ void adi_spi_init(void)
         .queue_size=7,                          //We want to be able to queue 7 transactions at a time
         .post_cb=spi_master_event_handler,      //Called after a spi xmission completes (called in interrupt context)
     };
+
+    //First, reset the ADI7953:
+    gpio_set_level(ADI_RESET, false);
+    vTaskDelay(10/portTICK_PERIOD_MS);
+    gpio_set_level(ADI_RESET, true);
+
     //Initialize the SPI bus
     ret=spi_bus_initialize(HSPI_HOST, &buscfg, 1);
     ESP_ERROR_CHECK(ret);
