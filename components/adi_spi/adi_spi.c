@@ -332,6 +332,7 @@ static volatile bool m_transfer_completed = true; /**< A flag to inform about co
  *
  * @param[in] spi_master_evt    SPI master driver event.
  */
+#ifdef NOWAY
 static void spi_master_event_handler(spi_transaction_t *cur_trans)
 {
     //uint32_t err_code = NRF_SUCCESS;
@@ -342,8 +343,7 @@ static void spi_master_event_handler(spi_transaction_t *cur_trans)
 
     }
 }
-
-
+#endif // NOWAY
 
 /*
  * power_up_register_sequence - this sequence is apparently required for
@@ -560,6 +560,7 @@ void irq_b_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 
 void adi_spi_init(void)
 {
+#ifdef NOWAY
     esp_err_t ret;
     spi_device_handle_t spi;
     spi_bus_config_t buscfg={
@@ -578,21 +579,33 @@ void adi_spi_init(void)
         .post_cb=spi_master_event_handler,      //Called after a spi xmission completes (called in interrupt context)
     };
 
-    //First, reset the ADI7953:
-    gpio_set_level(ADI_RESET, false);
-    vTaskDelay(10/portTICK_PERIOD_MS);
-    gpio_set_level(ADI_RESET, true);
+#endif // NOWAY
 
+	printf("%s(): 01\n", __func__);
+
+    //First, hardware reset the ADI7953:
+	adi_hw_reset();
+
+	printf("%s(): 02\n", __func__);
+
+#ifdef NOWAY
     //Initialize the SPI bus
     ret=spi_bus_initialize(HSPI_HOST, &buscfg, 1);
     ESP_ERROR_CHECK(ret);
-    //Attach the LCD to the SPI bus
+
+	//printf("%s(): 03\n", __func__);
+
+    //Attach the ADI7953 to the SPI bus
     ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
     ESP_ERROR_CHECK(ret);
+
+	//printf("%s(): 04\n", __func__);
+
     m_spi_master = spi;
     //Initialize the AD7953:
     //ad7953_init(spi); // (vjc) add this later
 
+#endif // NOWAY
 }
 
 //called after a hardware reset, to reinitialize chip to a known state
@@ -832,6 +845,14 @@ void factory_7953(void)
     }   
 }
 
+
+void adi_hw_reset(void)
+{
+    gpio_set_level(ADI_RESET, false);
+    vTaskDelay(10/portTICK_PERIOD_MS);
+    gpio_set_level(ADI_RESET, true);
+
+}
 
 /** @} */
 

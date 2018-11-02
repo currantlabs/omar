@@ -11,8 +11,11 @@ static void button_setup(void);
 void omar_setup(void)
 {
     gpio_setup();
+	//printf("%s(): gpio_setup() passed\n", __func__);
     button_setup();
+	//printf("%s(): button_setup() passed\n", __func__);
     adi_spi_init();
+	//printf("%s(): adi_spi_init() passed\n", __func__);
 }
 
 static void gpio_setup(void)
@@ -59,8 +62,8 @@ static void gpio_setup(void)
     /* Configure the GPIO */
     gpio_config(&io_conf_adi_reset);
     
-    //Hold the ADI77953 in reset for now:
-    gpio_set_level(ADI_RESET, false);
+    //Don't assert the ADI_RESET just yet:
+    gpio_set_level(ADI_RESET, true);
 
 }
 

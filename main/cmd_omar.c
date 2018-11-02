@@ -143,7 +143,8 @@ static int ad7953(int argc, char** argv)
     char const *cmd = ad7953_args.cmd->sval[0];
 
     if (strcmp(cmd, "hwreset") == 0) {
-        ESP_LOGI(__func__, "perform a hardware reset");
+		adi_hw_reset();
+        ESP_LOGI(__func__, "performed a hardware reset");
     } else if (strcmp(cmd, "swreset") == 0) {
         ESP_LOGI(__func__, "perform a software reset");
     } else if (strcmp(cmd, "test") == 0) {
