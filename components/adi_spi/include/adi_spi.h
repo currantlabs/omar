@@ -88,11 +88,11 @@ void spi_write_reg(SpiCmdNameT reg, uint8_t *buff);
 char *get_reg_name(SpiCmdNameT reg);
 void adi_hw_reset(void);
 void adi_spi_setup(void);
+int adi_spi_reinit(void);
 
 
 #if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
 
-int adi_spi_reinit(void);
 
 void enable_hpf(bool enable);
 void adi_sw_reset(void);

@@ -335,7 +335,12 @@ static volatile bool m_transfer_completed = true; /**< A flag to inform about co
 static void spi_master_event_handler(spi_transaction_t *cur_trans)
 {
     //uint32_t err_code = NRF_SUCCESS;
+
+    printf("%s(): 01\n", __func__);
+
     if (cur_trans != NULL) {
+
+        printf("%s(): 02 - \n", __func__);
 
         // Inform application that transfer is completed.
         m_transfer_completed = true;
@@ -559,10 +564,10 @@ void irq_b_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 void adi_spi_init(void)
 {
     //First, hardware reset the ADI7953:
-	adi_hw_reset();
+    adi_hw_reset();
 
-	// Next, configure the SPI bus:
-	adi_spi_setup();
+    // Next, configure the SPI bus:
+    adi_spi_setup();
 
 
 }
@@ -638,24 +643,56 @@ static void spi_send_recv(SpiCmdNameT send_cmd, uint8_t *data)
 
     esp_err_t ret;
     spi_transaction_t t;
+
+    bool spi_read = false;
+
     memset(&t, 0, sizeof(t));       //Zero out the transaction
+
+    printf("%s(): 01\n", __func__);
 
     m_transfer_completed = false;
 
     if (data != NULL) {
+        printf("%s(): 02\n", __func__);
+
         //this is a write command - copy data to write into buffer
         p_tx_data[2] = SPI_WRITE;
         memcpy(p_tx_data + 3, data, len - 3);
     } else {
+        printf("%s(): 03\n", __func__);
+
+
         //this is a read command - data tx buffer doesn't matter
         m_last_read_cmd = cmd;
         p_tx_data[2] = SPI_READ;
+
+        spi_read = true;
+        printf("%s(): m_rx_data before read:\n", __func__);
+        hexdump_bytes(m_rx_data, SPI_4BYTE_TRANSACTION_LEN);
+        t.rx_buffer=m_rx_data;
+
+
     }
+
+    printf("%s(): 04\n", __func__);
+
 
     t.length=len;                                       //Command length
     t.tx_buffer=p_tx_data;                              //The data is the cmd itself
     t.user=(void*)0;                                    //D/C needs to be set to 0
+    printf("%s(): 05\n", __func__);
+
+
     ret=spi_device_polling_transmit(m_spi_master, &t);  //Transmit!
+
+    printf("%s(): 06\n", __func__);
+
+    if (spi_read) {
+        printf("%s(): m_rx_data after read:\n", __func__);
+        hexdump_bytes(m_rx_data, SPI_4BYTE_TRANSACTION_LEN);
+    }
+
+
     assert(ret==ESP_OK);                                //Should have had no issues.
     
 
@@ -750,12 +787,15 @@ static int test(void)
     //test reading config
     ESP_LOGI(__func__, "CONFIG: ");
     spi_read_reg(CONFIG, buff);
+    printf("%s(): 01\n", __func__);
     if (buff[0] == 0x80 && buff[1] == 0x04) {
         ESP_LOGI(__func__, "[OK]");
     } else {
         ESP_LOGI(__func__, "[FAILED]");
         return -1;
     }
+
+    printf("%s(): 02\n", __func__);
 
     spi_read_reg(AP_NOLOAD, buff);
 
@@ -769,12 +809,17 @@ static int test(void)
     buff[2] = TEST_BYTE_2;
     buff[3] = TEST_BYTE_3;
 
+    printf("%s(): 03\n", __func__);
+
     spi_write_reg(AP_NOLOAD, buff);
     memset(buff, 0, sizeof(buff));
+
+    printf("%s(): 04\n", __func__);
 
     ESP_LOGI(__func__, "AP_NOLOAD: ");
     spi_read_reg(AP_NOLOAD, buff);
 
+    printf("%s(): 05\n", __func__);
 
     if (buff[0] == TEST_BYTE_0 && buff[1] == TEST_BYTE_1 && buff[2] == TEST_BYTE_2 && buff[3] == TEST_BYTE_3) {
         ESP_LOGI(__func__, "[OK]");
@@ -837,13 +882,13 @@ void adi_spi_setup(void)
     ret=spi_bus_initialize(HSPI_HOST, &buscfg, 1);
     ESP_ERROR_CHECK(ret);
 
-	//printf("%s(): 03\n", __func__);
+    //printf("%s(): 03\n", __func__);
 
     //Attach the ADI7953 to the SPI bus
     ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
     ESP_ERROR_CHECK(ret);
 
-	//printf("%s(): 04\n", __func__);
+    //printf("%s(): 04\n", __func__);
 
     m_spi_master = spi;
     //Initialize the AD7953:

@@ -143,8 +143,10 @@ static int ad7953(int argc, char** argv)
     char const *cmd = ad7953_args.cmd->sval[0];
 
     if (strcmp(cmd, "hwreset") == 0) {
-		adi_hw_reset();
+        adi_hw_reset();
         ESP_LOGI(__func__, "performed a hardware reset");
+    } else if (strcmp(cmd, "reinit") == 0) {
+        adi_spi_reinit();
     } else if (strcmp(cmd, "test") == 0) {
         factory_7953();
     } else {
@@ -160,8 +162,8 @@ static void register_7953(void)
     ad7953_args.cmd = arg_str0(
         NULL, 
         NULL, 
-        "<hwreset|test>", 
-        "hwreset  -- perform a hardware reset; test -- run factory test");
+        "<hwreset|reinit|test>", 
+        "hwreset  -- perform a hardware reset; reinit -- setup adi7953; test -- run factory test");
 
     ad7953_args.end = arg_end(1);
 
