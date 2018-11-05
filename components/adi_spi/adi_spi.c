@@ -572,6 +572,33 @@ void adi_spi_init(void)
 
 }
 
+//copy the kind of call I see succeeding in the esp_idf LCD samle:
+/* Send a command to the LCD. Uses spi_device_polling_transmit, which waits
+ * until the transfer is complete.
+ *
+ * Since command transactions are usually small, they are handled in polling
+ * mode for higher speed. The overhead of interrupt transactions is more than
+ * just waiting for the transaction to complete.
+ */
+static void lcd_cmd(spi_device_handle_t spi, const uint8_t cmd)
+{
+    esp_err_t ret;
+    spi_transaction_t t;
+    memset(&t, 0, sizeof(t));       //Zero out the transaction
+    t.length=8;                     //Command is 8 bits
+    t.tx_buffer=&cmd;               //The data is the cmd itself
+    t.user=(void*)0;                //D/C needs to be set to 0
+    ret=spi_device_polling_transmit(spi, &t);  //Transmit!
+    assert(ret==ESP_OK);            //Should have had no issues.
+}
+
+void lcd_get_id(void)
+{
+    //get_id cmd
+    lcd_cmd(m_spi_master, 0x04);
+
+}
+
 //called after a hardware reset, to reinitialize chip to a known state
 int adi_spi_reinit(void)
 {
@@ -584,6 +611,9 @@ int adi_spi_reinit(void)
     //reset ADE7953 interrupts
     uint8_t buff[3];
     spi_read_reg(RSTIRQSTATA, buff);
+
+
+#ifdef NOWAY
     spi_read_reg(RSTIRQSTATB, buff);
 
     //initialize 7953
@@ -596,6 +626,9 @@ int adi_spi_reinit(void)
     //re-set calibration constants
     calibration_init();
 #endif      // (ADE7953_CALIBRATION_SUPPORT)
+
+#endif // NOWAY
+
 
     return 0;
 }
@@ -632,6 +665,24 @@ int set_pgagain(uint8_t gain)
 
     return 0;
 }
+
+static esp_err_t local_spi_device_polling_transmit(spi_device_handle_t handle, spi_transaction_t* trans_desc)
+{
+    esp_err_t ret;
+	toggle_blue(0, NULL);
+    ret = spi_device_polling_start(handle, trans_desc, portMAX_DELAY);
+    if (ret != ESP_OK) return ret;
+
+	toggle_blue(0, NULL);
+    ret = spi_device_polling_end(handle, portMAX_DELAY);
+	toggle_blue(0, NULL);
+    if (ret != ESP_OK) return ret;
+	toggle_blue(0, NULL);
+    printf("%s(): 01\n", __func__);
+
+    return ESP_OK;
+}
+	
 
 static void spi_send_recv(SpiCmdNameT send_cmd, uint8_t *data)
 {
@@ -683,9 +734,9 @@ static void spi_send_recv(SpiCmdNameT send_cmd, uint8_t *data)
     printf("%s(): 05\n", __func__);
 
 
-    ret=spi_device_polling_transmit(m_spi_master, &t);  //Transmit!
+    ret=local_spi_device_polling_transmit(m_spi_master, &t);  //Transmit!
 
-    printf("%s(): 06\n", __func__);
+    printf("%s(): 06, spi_device_polling_transmit() retval is 0x%02x\n", __func__, ret);
 
     if (spi_read) {
         printf("%s(): m_rx_data after read:\n", __func__);
@@ -749,15 +800,21 @@ static void spi_send_recv(SpiCmdNameT send_cmd, uint8_t *data)
  */
 uint32_t spi_read_reg(SpiCmdNameT reg, uint8_t *buff)
 {
+
+    printf("%s(): 01\n", __func__);
+
     //TESTING!!
     if (!m_transfer_completed) {
-        ESP_LOGI(__func__, "!!  reg=%d\r\n", reg);
+		printf("%s(): 02\n", __func__);
         return -1;
     }
+    printf("%s(): 03\n", __func__);
     spi_send_recv(reg, NULL);
     while (!m_transfer_completed) {};
 
+    printf("%s(): 04\n", __func__);
     memcpy(buff, m_rx_data + 3, m_last_read_cmd.pkt_size - 3);
+    printf("%s(): 05\n", __func__);
     return m_last_read_cmd.pkt_size - 3;
 }
 

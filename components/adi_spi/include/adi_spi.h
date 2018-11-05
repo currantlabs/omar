@@ -89,6 +89,7 @@ char *get_reg_name(SpiCmdNameT reg);
 void adi_hw_reset(void);
 void adi_spi_setup(void);
 int adi_spi_reinit(void);
+void lcd_get_id(void);
 
 
 #if defined (__OMAR_AD7953_SPI_SUPPORT_READY__)
