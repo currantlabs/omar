@@ -594,9 +594,45 @@ static void lcd_cmd(spi_device_handle_t spi, const uint8_t cmd)
 
 void lcd_get_id(void)
 {
+
+	// This is the code that gave me a decent-looking
+	// spi signal capture on the Saleae: git commit 80c69d9:
+#ifdef REPEAT_SUCCESS_OF_COMMIT_80c69d9
+	
     //get_id cmd
     lcd_cmd(m_spi_master, 0x04);
 
+#endif //REPEAT_SUCCESS_OF_COMMIT_80c69d9
+
+
+	// Now I'm trying the same approach to implement
+	// the guts of the proposition adi_spi.c routine:
+	//
+	// test()
+	//
+	// Here we go:
+
+    esp_err_t ret;
+    spi_transaction_t t;
+	uint8_t cmd[] = {0x01, 0x02, 0x80};
+
+    memset(&t, 0, sizeof(t));       //Zero out the transaction
+    t.length=24;                     //Command is 24 bits
+    t.tx_buffer=&cmd;               //The data is the cmd itself
+    t.user=(void*)0;                //D/C needs to be set to 0
+    ret=spi_device_polling_transmit(m_spi_master, &t);  //Transmit!
+    assert(ret==ESP_OK);            //Should have had no issues.
+
+    spi_transaction_t r;
+    memset(&r, 0, sizeof(r));
+    r.length=8*2;
+    r.flags = SPI_TRANS_USE_RXDATA;
+    r.user = (void*)1;
+
+    esp_err_t rxret = spi_device_polling_transmit(m_spi_master, &r);
+    assert( rxret == ESP_OK );
+
+    printf("CONFIG REGISTER: {0x%02x, 0x%02x}\n", r.rx_data[0], r.rx_data[1]);
 }
 
 //called after a hardware reset, to reinitialize chip to a known state
