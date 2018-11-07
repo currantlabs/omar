@@ -14,6 +14,9 @@
 #include "sdkconfig.h"
 
 
+static void register_toggle_white_led0();
+static void register_toggle_white_led1();
+
 static void register_toggle_blue();
 static void register_toggle_green();
 static void register_toggle_red();
@@ -23,6 +26,9 @@ static void register_7953();
 
 void register_omar()
 {
+    register_toggle_white_led0();
+    register_toggle_white_led1();
+
     register_toggle_blue();
     register_toggle_green();
     register_toggle_red();
@@ -88,6 +94,28 @@ static void register_toggle()
         .hint = NULL,
         .func = &toggle,
         .argtable = &toggle_args
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+static void register_toggle_white_led0()
+{
+    const esp_console_cmd_t cmd = {
+        .command = "white_led0",
+        .help = "Toggle White LED0",
+        .hint = NULL,
+        .func = &toggle_white_led0,
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+static void register_toggle_white_led1()
+{
+    const esp_console_cmd_t cmd = {
+        .command = "white_led1",
+        .help = "Toggle White LED1",
+        .hint = NULL,
+        .func = &toggle_white_led1,
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
