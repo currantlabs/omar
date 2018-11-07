@@ -145,12 +145,8 @@ static int ad7953(int argc, char** argv)
     if (strcmp(cmd, "hwreset") == 0) {
         adi_hw_reset();
         ESP_LOGI(__func__, "performed a hardware reset");
-    } else if (strcmp(cmd, "reinit") == 0) {
-        adi_spi_reinit();
-    } else if (strcmp(cmd, "lcd_get_id") == 0) {
-        lcd_get_id();
     } else if (strcmp(cmd, "test") == 0) {
-        factory_7953();
+        lcd_get_id();
     } else {
         ESP_LOGI(__func__, "'%s' is not a recognized AD7953 command - please enter either \"hwreset\" or \"swreset\"",
                  cmd);
@@ -164,8 +160,8 @@ static void register_7953(void)
     ad7953_args.cmd = arg_str0(
         NULL, 
         NULL, 
-        "<hwreset|reinit|lcd_get_id|test>", 
-        "hwreset  -- perform a hardware reset; reinit -- setup adi7953; lcd_get_id -- emulate the esp_idf LCD sample; test -- run factory test");
+        "<hwreset|test>", 
+        "hwreset  -- perform a hardware reset; test -- run factory test");
 
     ad7953_args.end = arg_end(1);
 

@@ -336,11 +336,11 @@ static void spi_master_event_handler(spi_transaction_t *cur_trans)
 {
     //uint32_t err_code = NRF_SUCCESS;
 
-    printf("%s(): 01\n", __func__);
+    //printf("%s(): 01\n", __func__);
 
     if (cur_trans != NULL) {
 
-        printf("%s(): 02 - \n", __func__);
+        //printf("%s(): 02 - \n", __func__);
 
         // Inform application that transfer is completed.
         m_transfer_completed = true;
@@ -615,24 +615,23 @@ void lcd_get_id(void)
     esp_err_t ret;
     spi_transaction_t t;
 	uint8_t cmd[] = {0x01, 0x02, 0x80};
+	uint8_t miso[5] = {0};
 
     memset(&t, 0, sizeof(t));       //Zero out the transaction
-    t.length=24;                     //Command is 24 bits
+    t.length=40;                     //Command is 24 bits
     t.tx_buffer=&cmd;               //The data is the cmd itself
+    t.rx_buffer=miso;               //The data is the cmd itself
     t.user=(void*)0;                //D/C needs to be set to 0
     ret=spi_device_polling_transmit(m_spi_master, &t);  //Transmit!
     assert(ret==ESP_OK);            //Should have had no issues.
 
-    spi_transaction_t r;
-    memset(&r, 0, sizeof(r));
-    r.length=8*2;
-    r.flags = SPI_TRANS_USE_RXDATA;
-    r.user = (void*)1;
+    printf("CONFIG REGISTER: {0x%02x, 0x%02x}\n", miso[3], miso[4]);
 
-    esp_err_t rxret = spi_device_polling_transmit(m_spi_master, &r);
-    assert( rxret == ESP_OK );
-
-    printf("CONFIG REGISTER: {0x%02x, 0x%02x}\n", r.rx_data[0], r.rx_data[1]);
+	if (miso[3] == 0x80 && miso[4] == 0x04) {
+		printf("[OK]\n");
+	} else {
+		printf("[FAILED]\n");
+	}
 }
 
 //called after a hardware reset, to reinitialize chip to a known state
