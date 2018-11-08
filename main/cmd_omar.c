@@ -17,10 +17,12 @@
 static void register_toggle_white_led0();
 static void register_toggle_white_led1();
 
+#if defined(HW_ESP32_PICOKIT)
 static void register_toggle_blue();
 static void register_toggle_green();
 static void register_toggle_red();
 static void register_toggle();
+#endif //HW_ESP32_PICOKIT
 
 static void register_7953();
 
@@ -29,15 +31,18 @@ void register_omar()
     register_toggle_white_led0();
     register_toggle_white_led1();
 
+#if defined(HW_ESP32_PICOKIT)
     register_toggle_blue();
     register_toggle_green();
     register_toggle_red();
 
     register_toggle();
+#endif //HW_ESP32_PICOKIT
 
     register_7953();
 }
 
+#if defined(HW_ESP32_PICOKIT)
 // Struct used by the LED toggle function
 static struct {
     struct arg_str *color;
@@ -97,6 +102,7 @@ static void register_toggle()
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
+#endif //HW_ESP32_PICOKIT
 
 static void register_toggle_white_led0()
 {
@@ -120,6 +126,7 @@ static void register_toggle_white_led1()
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
+#if defined(HW_ESP32_PICOKIT)
 static void register_toggle_blue()
 {
     const esp_console_cmd_t cmd = {
@@ -152,6 +159,9 @@ static void register_toggle_red()
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
+
+#endif //HW_ESP32_PICOKIT
+
 
 // Struct used by the LED toggle function
 static struct {

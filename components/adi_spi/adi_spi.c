@@ -704,15 +704,10 @@ int set_pgagain(uint8_t gain)
 static esp_err_t local_spi_device_polling_transmit(spi_device_handle_t handle, spi_transaction_t* trans_desc)
 {
     esp_err_t ret;
-	toggle_blue(0, NULL);
     ret = spi_device_polling_start(handle, trans_desc, portMAX_DELAY);
     if (ret != ESP_OK) return ret;
-
-	toggle_blue(0, NULL);
     ret = spi_device_polling_end(handle, portMAX_DELAY);
-	toggle_blue(0, NULL);
     if (ret != ESP_OK) return ret;
-	toggle_blue(0, NULL);
     printf("%s(): 01\n", __func__);
 
     return ESP_OK;

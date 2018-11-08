@@ -15,6 +15,20 @@ void omar_setup(void)
     adi_spi_init();
 }
 
+static void configure_gpio_output(uint8_t gpio)
+{
+    gpio_config_t gpio_cfg = {
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = 1,
+    };
+    gpio_cfg.pin_bit_mask = ((uint64_t)1 << gpio);
+    gpio_config(&gpio_cfg);
+}
+
+
+
+#if defined(HW_ESP32_PICOKIT)
+
 static void gpio_setup(void)
 {
     /* Configure outputs */
@@ -98,6 +112,41 @@ static void button_toggle_state(void)
 
 }
 
+
+
+#elif defined(HW_OMAR)
+
+static void gpio_setup(void)
+{
+    /* Configure outputs */
+
+	configure_gpio_output(OMAR_WHITE_LED0);
+	configure_gpio_output(OMAR_WHITE_LED1);
+
+	configure_gpio_output(ADI_RESET);
+    gpio_set_level(ADI_RESET, true);	//Don't assert the ADI_RESET just yet:
+
+}
+
+
+static void button_toggle_state(void)
+{
+    static bool on = false;
+
+    on = !on;
+
+    // For now, for the hell of it: turn all leds ON, or OFF:
+	toggle_white_led0(0, NULL);
+	toggle_white_led1(0, NULL);
+
+}
+
+#else
+
+#error No recognized hardware target is #defined!
+
+#endif
+
 static void push_btn_cb(void* arg)
 {
     static uint64_t previous;
@@ -142,6 +191,8 @@ int toggle_white_led1(int argc, char** argv)
     return 0;
 }
 
+#if defined(HW_ESP32_PICOKIT)
+
 int toggle_blue(int argc, char** argv)
 {
     static bool on = false;
@@ -181,3 +232,4 @@ int toggle_red(int argc, char** argv)
     return 0;
 }
 
+#endif //HW_ESP32_PICOKIT
