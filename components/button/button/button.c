@@ -262,6 +262,41 @@ button_handle_t iot_button_create(gpio_num_t gpio_num, button_active_t active_le
     return (button_handle_t) btn;
 }
 
+button_handle_t iot_button_create_omar(gpio_num_t gpio_num, button_active_t active_level, int isr_service)
+{
+    IOT_CHECK(TAG, gpio_num < GPIO_NUM_MAX, NULL);
+    button_dev_t* btn = (button_dev_t*) calloc(1, sizeof(button_dev_t));
+    POINT_ASSERT(TAG, btn, NULL);
+    btn->active_level = active_level;
+    btn->io_num = gpio_num;
+    btn->state = BUTTON_STATE_IDLE;
+    btn->taskq_on = 0;
+    btn->taskq = xQueueCreate(1, sizeof(void*));
+    btn->argq = xQueueCreate(1, sizeof(void *));
+    btn->tap_rls_cb.arg = NULL;
+    btn->tap_rls_cb.cb = NULL;
+    btn->tap_rls_cb.interval = BUTTON_GLITCH_FILTER_TIME_MS / portTICK_PERIOD_MS;
+    btn->tap_rls_cb.pbtn = btn;
+    btn->tap_rls_cb.tmr = xTimerCreate("btn_rls_tmr", btn->tap_rls_cb.interval, pdFALSE,
+            &btn->tap_rls_cb, button_tap_rls_cb);
+    btn->tap_psh_cb.arg = NULL;
+    btn->tap_psh_cb.cb = NULL;
+    btn->tap_psh_cb.interval = BUTTON_GLITCH_FILTER_TIME_MS / portTICK_PERIOD_MS;
+    btn->tap_psh_cb.pbtn = btn;
+    btn->tap_psh_cb.tmr = xTimerCreate("btn_psh_tmr", btn->tap_psh_cb.interval, pdFALSE,
+            &btn->tap_psh_cb, button_tap_psh_cb);
+    gpio_install_isr_service(isr_service);
+    gpio_config_t gpio_conf;
+    gpio_conf.intr_type = GPIO_INTR_ANYEDGE;
+    gpio_conf.mode = GPIO_MODE_INPUT;
+    gpio_conf.pin_bit_mask = ((uint64_t)1 << gpio_num);
+    gpio_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    gpio_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+    gpio_config(&gpio_conf);
+    gpio_isr_handler_add(gpio_num, button_gpio_isr_handler, btn);
+    return (button_handle_t) btn;
+}
+
 esp_err_t iot_button_rm_cb(button_handle_t btn_handle, button_cb_type_t type)
 {
     button_dev_t* btn = (button_dev_t*) btn_handle;

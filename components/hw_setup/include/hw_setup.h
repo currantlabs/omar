@@ -98,8 +98,7 @@
 #define DEBOUNCE_TIME                   (30)
 
 #define OMAR_SWITCH_INT0                (36)   // aka "SENSOR_VP" (Pin 5)
-
-/* #define OMAR_SWITCH_INT1                (39) */
+#define OMAR_SWITCH_INT1                (39)   // aka "SENSOR_VN" (Pin 8)
 
 
 // Omar Coils:

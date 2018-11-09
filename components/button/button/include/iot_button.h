@@ -59,6 +59,13 @@ typedef enum {
 button_handle_t iot_button_create(gpio_num_t gpio_num, button_active_t active_level);
 
 /**
+ * @brief iot_button_create_omar() is a version of iot_button_create() that allows you to 
+ * specify which isr service to hook the button handler to
+ *
+ */
+button_handle_t iot_button_create_omar(gpio_num_t gpio_num, button_active_t active_level, int isr_service);
+
+/**
  * @brief Register a callback function for a serial trigger event.
  *
  * @param btn_handle handle of the button object
