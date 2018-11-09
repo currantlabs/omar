@@ -79,8 +79,6 @@
 #ifdef    HW_OMAR
 
 #define BUTTON_GPIO                     (0)
-#define BUTTON_ACTIVE_LEVEL             (0)
-#define DEBOUNCE_TIME                   (30)
 
 // ADI7953 Energy Monitor chip signals
 #define ADI_RESET                       (10)    // Just a GPIO output. (RESET_N_MON)
@@ -88,19 +86,29 @@
 #define OMAR_SPIM0_MOSI_PIN             (23)    // SPI Master Out Slave In GPIO pin number. (SPI_MON_MOSI)
 #define OMAR_SPIM0_MISO_PIN             (19)    // SPI Master In Slave Out GPIO pin number. (SPI_MON_MISO)
 #define OMAR_SPIM0_SS_PIN               (5)     // SPI Slave Select GPIO pin number. (SPI_MON_CS)
+// Don't implement AD7953 interrupt support just yet:
+//#define ADE7953_INTERRUPT_SUPPORT
+
 
 // Omar LEDs and Buttons
+#define OMAR_WHITE_LED0                 (26)
+#define OMAR_WHITE_LED1                 (27)
+
+#define BUTTON_ACTIVE_LEVEL             (1)
+#define DEBOUNCE_TIME                   (30)
+
+#define OMAR_SWITCH_INT0                (36)   // aka "SENSOR_VP" (Pin 5)
+
+/* #define OMAR_SWITCH_INT1                (39) */
+
+
+// Omar Coils:
 #define OMAR_COIL_1_SET_GPIO            (32)
 #define OMAR_COIL_1_RESET_GPIO          (22)
 #define OMAR_COIL_2_SET_GPIO            (33)
 #define OMAR_COIL_2_RESET_GPIO          (21)
 
-#define OMAR_WHITE_LED0                 (26)
-#define OMAR_WHITE_LED1                 (27)
 
-
-// Don't implement AD7953 interrupt support just yet:
-//#define ADE7953_INTERRUPT_SUPPORT
 
 #endif // HW_OMAR
 

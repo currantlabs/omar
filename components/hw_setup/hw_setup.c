@@ -25,6 +25,16 @@ static void configure_gpio_output(uint8_t gpio)
     gpio_config(&gpio_cfg);
 }
 
+static void configure_gpio_input(uint8_t gpio)
+{
+    gpio_config_t gpio_cfg = {
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = 0,
+    };
+    gpio_cfg.pin_bit_mask = ((uint64_t)1 << gpio);
+    gpio_config(&gpio_cfg);
+}
+
 
 
 #if defined(HW_ESP32_PICOKIT)
@@ -150,6 +160,7 @@ static void button_toggle_state(void)
 static void push_btn_cb(void* arg)
 {
     static uint64_t previous;
+
     uint64_t current = xTaskGetTickCount();
     if ((current - previous) > DEBOUNCE_TIME) {
         previous = current;
@@ -159,7 +170,7 @@ static void push_btn_cb(void* arg)
 
 static void button_setup(void)
 {
-    button_handle_t btn_handle = iot_button_create(BUTTON_GPIO, BUTTON_ACTIVE_LEVEL);
+    button_handle_t btn_handle = iot_button_create(OMAR_SWITCH_INT0, BUTTON_ACTIVE_LEVEL);
     if (btn_handle) {
         iot_button_set_evt_cb(btn_handle, BUTTON_CB_RELEASE, push_btn_cb, "RELEASE");
     }
