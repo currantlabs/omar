@@ -262,8 +262,9 @@ button_handle_t iot_button_create(gpio_num_t gpio_num, button_active_t active_le
     return (button_handle_t) btn;
 }
 
-button_handle_t iot_button_create_omar(gpio_num_t gpio_num, button_active_t active_level, int isr_service)
+button_handle_t iot_button_create_omar(gpio_num_t gpio_num, button_active_t active_level)
 {
+    static bool install_isr_service = true;
     IOT_CHECK(TAG, gpio_num < GPIO_NUM_MAX, NULL);
     button_dev_t* btn = (button_dev_t*) calloc(1, sizeof(button_dev_t));
     POINT_ASSERT(TAG, btn, NULL);
@@ -285,7 +286,10 @@ button_handle_t iot_button_create_omar(gpio_num_t gpio_num, button_active_t acti
     btn->tap_psh_cb.pbtn = btn;
     btn->tap_psh_cb.tmr = xTimerCreate("btn_psh_tmr", btn->tap_psh_cb.interval, pdFALSE,
             &btn->tap_psh_cb, button_tap_psh_cb);
-    gpio_install_isr_service(isr_service);
+    if (install_isr_service) {
+        gpio_install_isr_service(0);
+        install_isr_service = false;
+    }
     gpio_config_t gpio_conf;
     gpio_conf.intr_type = GPIO_INTR_ANYEDGE;
     gpio_conf.mode = GPIO_MODE_INPUT;

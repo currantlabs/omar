@@ -194,8 +194,7 @@ static void button_setup(void)
     button_handle_t btn_handle = 
         iot_button_create_omar(
             OMAR_SWITCH_INT0,
-            BUTTON_ACTIVE_LEVEL,
-            0);
+            BUTTON_ACTIVE_LEVEL);
 
     if (btn_handle) {
         iot_button_set_evt_cb(btn_handle, BUTTON_CB_RELEASE, push_btn_cb, "RELEASE");
@@ -204,8 +203,7 @@ static void button_setup(void)
     button_handle_t btn_handle1 = 
         iot_button_create_omar(
             OMAR_SWITCH_INT1,
-            BUTTON_ACTIVE_LEVEL,
-            1);
+            BUTTON_ACTIVE_LEVEL);
 
     if (btn_handle1) {
         iot_button_set_evt_cb(btn_handle1, BUTTON_CB_RELEASE, push_btn_cb1, "RELEASE");

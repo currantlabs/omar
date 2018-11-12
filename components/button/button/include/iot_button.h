@@ -63,7 +63,7 @@ button_handle_t iot_button_create(gpio_num_t gpio_num, button_active_t active_le
  * specify which isr service to hook the button handler to
  *
  */
-button_handle_t iot_button_create_omar(gpio_num_t gpio_num, button_active_t active_level, int isr_service);
+button_handle_t iot_button_create_omar(gpio_num_t gpio_num, button_active_t active_level);
 
 /**
  * @brief Register a callback function for a serial trigger event.
