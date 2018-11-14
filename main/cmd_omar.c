@@ -26,6 +26,7 @@ static void register_toggle();
 
 #if defined(HW_OMAR)
 static void register_hw_detect();
+static void register_als();
 #endif
 
 static void register_7953();
@@ -47,6 +48,7 @@ void register_omar()
 
 #if defined(HW_OMAR)
 	register_hw_detect();
+	register_als();
 #endif
 
 }
@@ -141,7 +143,7 @@ static int print_hw_type(int argc, char** argv)
 {
 	int adc = hw_version_raw();
 
-	printf("ADC reading at the ADC_HW_DET point at boot was %d (0x%02x)\n", 
+	printf("ADC reading at the ADC_HW_DET point was %d (0x%02x)\n", 
 		   adc, adc);
     return 0;
 }
@@ -153,6 +155,26 @@ static void register_hw_detect()
         .help = "Print out the ADC reading for Hardware Detect",
         .hint = NULL,
         .func = &print_hw_type,
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+static int print_als(int argc, char** argv)
+{
+	int adc = als_raw();
+
+	printf("Ambient light sensor reading is %d (0x%02x)\n", 
+		   adc, adc);
+    return 0;
+}
+
+static void register_als()
+{
+    const esp_console_cmd_t cmd = {
+        .command = "als",
+        .help = "Print out the ADC reading for the Ambient Light Sensor",
+        .hint = NULL,
+        .func = &print_als,
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }

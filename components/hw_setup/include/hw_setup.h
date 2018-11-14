@@ -153,4 +153,5 @@ int toggle_red(int argc, char** argv);
 #if defined(HW_OMAR)
 HwVersionT hw_version(void);
 int hw_version_raw(void);
+int als_raw(void);
 #endif	// HW_OMAR

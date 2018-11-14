@@ -180,7 +180,7 @@ static void adc_setup(void)
 
 	// Configure the ambient light sensor ADC input:
 	adc1_config_width(ADC_WIDTH_BIT_12);
-	adc1_config_channel_atten(VOUT_LGHT_SNSR__ADC_CHANNEL, ADC_ATTEN_DB_0);
+	adc1_config_channel_atten(VOUT_LGHT_SNSR__ADC_CHANNEL, ADC_ATTEN_DB_11);
 	adc1_config_channel_atten(HW_DET__ADC_CHANNEL, ADC_ATTEN_DB_0);
 
 	
@@ -200,7 +200,6 @@ static void adc_setup(void)
  * the result would be (50/33)*621=941
  *
  */
-static esp_adc_cal_characteristics_t *adc_chars;
 #define DEFAULT_VREF    1100        //Use adc2_vref_to_gpio() to obtain a better estimate
 static void print_char_val_type(esp_adc_cal_value_t val_type)
 {
@@ -224,7 +223,7 @@ int hw_version_raw(void)
 			ADC_UNIT_1, 
 			ADC_ATTEN_DB_0, 
 			ADC_WIDTH_BIT_12, 
-			DEFAULT_VREF, adc_chars);
+			DEFAULT_VREF, adc_chars); 
 
     print_char_val_type(val_type);
 
@@ -232,7 +231,7 @@ int hw_version_raw(void)
 
 	//Convert adc_reading to voltage in mV
 	uint32_t voltage = esp_adc_cal_raw_to_voltage(raw_adc, adc_chars);
-	printf("Raw: %d\tVoltage: %dmV\n", raw_adc, voltage);
+	printf("Raw: %d\tVoltage: %dmV (Expected value is 500mV)\n", raw_adc, voltage);
 
 	return raw_adc;
 }
@@ -252,6 +251,14 @@ HwVersionT hw_version(void)
         return version;
     }
 }
+
+int als_raw(void)
+{
+
+	return adc1_get_raw(VOUT_LGHT_SNSR__ADC_CHANNEL);
+
+}
+
 
 #else
 
