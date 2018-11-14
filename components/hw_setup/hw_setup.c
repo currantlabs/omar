@@ -4,14 +4,27 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <iot_button.h>
+#include "driver/adc.h"
+#include "esp_adc_cal.h"
+
 
 static void gpio_setup(void);
 static void button_setup(void);
+#if defined(HW_OMAR)
+static HwVersionT m_hw_version = HW_VERSION_UNKNOWN;
+static int m_hw_version_raw_adc = 0;
+static void adc_setup(void);
+#endif	// HW_OMAR
 
 void omar_setup(void)
 {
     gpio_setup();
     button_setup();
+
+#if defined(HW_OMAR)
+    adc_setup();
+#endif
+
     adi_spi_init();
 }
 
@@ -161,6 +174,91 @@ static void button_toggle_state1(void)
 
 }
 
+static void adc_setup(void)
+{
+	
+
+	// Configure the ambient light sensor ADC input:
+	adc1_config_width(ADC_WIDTH_BIT_12);
+	adc1_config_channel_atten(VOUT_LGHT_SNSR__ADC_CHANNEL, ADC_ATTEN_DB_0);
+
+	// Configure the hardware detect ADC input:
+	adc2_config_channel_atten(HW_DET__ADC_CHANNEL, ADC_ATTEN_DB_0);
+	adc2_get_raw(HW_DET__ADC_CHANNEL, ADC_WIDTH_BIT_12, &m_hw_version_raw_adc);
+	
+
+}
+
+/*
+ * hw_version_raw():
+ * Reads the voltage from a resistor ladder - the ladder looks like this:
+ *
+ * GND - 10Kohm ->ADC<- 56K0hm - 3.3V
+ *
+ * If the ADC's full-scale 12-bit range is mapped onto 0 - 3.3V, 
+ * then the reading should be (10/66)*(4096)=621, more or less.
+ *
+ * But if somehow the voltage range is mapped onto 0 - 5V, then
+ * the result would be (50/33)*621=941
+ *
+ */
+static esp_adc_cal_characteristics_t *adc_chars;
+#define DEFAULT_VREF    1100        //Use adc2_vref_to_gpio() to obtain a better estimate
+static void print_char_val_type(esp_adc_cal_value_t val_type)
+{
+    if (val_type == ESP_ADC_CAL_VAL_EFUSE_TP) {
+        printf("Characterized using Two Point Value\n");
+    } else if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF) {
+        printf("Characterized using eFuse Vref\n");
+    } else {
+        printf("Characterized using Default Vref\n");
+    }
+}
+
+int hw_version_raw(void)
+{
+	int raw_adc;
+
+	printf("hwdetect value read at boot: %d (0x%02x)\n", m_hw_version_raw_adc, m_hw_version_raw_adc);
+
+	adc2_config_channel_atten(HW_DET__ADC_CHANNEL, ADC_ATTEN_DB_0);
+
+    adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
+    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_2, ADC_ATTEN_DB_0, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
+    print_char_val_type(val_type);
+
+	vTaskDelay(pdMS_TO_TICKS(1000));
+
+	esp_err_t r = adc2_get_raw(HW_DET__ADC_CHANNEL, ADC_WIDTH_BIT_12, &raw_adc);
+
+	if (r != ESP_OK) {
+		printf("There was a problem getting access to ADC2\n");
+		return 0;
+	}
+
+	//Convert adc_reading to voltage in mV
+	uint32_t voltage = esp_adc_cal_raw_to_voltage(raw_adc, adc_chars);
+	printf("Raw: %d\tVoltage: %dmV\n", raw_adc, voltage);
+
+	return raw_adc;
+}
+
+HwVersionT hw_version(void)
+{
+    if (m_hw_version != HW_VERSION_UNKNOWN) return m_hw_version;
+    else {
+        HwVersionT version = 
+			(m_hw_version_raw_adc >= 110 && m_hw_version_raw_adc <= 200)
+			?
+			HW_VERSION_OMAR_1_0
+			:
+			HW_VERSION_UNKNOWN;
+			
+        m_hw_version = version;
+        return version;
+    }
+}
+
 #else
 
 #error No recognized hardware target is #defined!
@@ -275,3 +373,4 @@ int toggle_red(int argc, char** argv)
 }
 
 #endif //HW_ESP32_PICOKIT
+

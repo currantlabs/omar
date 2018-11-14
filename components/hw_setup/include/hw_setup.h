@@ -6,6 +6,23 @@
 
 #pragma once
 
+typedef enum {
+    HW_VERSION_UNKNOWN,
+    HW_VERSION_DEVKIT,
+    HW_VERSION_DEBUG,
+    HW_VERSION_1_0,
+    HW_VERSION_2_0,
+    HW_VERSION_3_0,
+    HW_VERSION_WALLACE_LATEST,
+    HW_VERSION_STRINGER_1_0,
+    HW_VERSION_STRINGER_1_1,
+    HW_VERSION_OMAR_1_0,
+    //NOTE: be sure to include new  *_STRINGER_* in hw_version_is_stringer()
+    //and *_OMAR_* in hw_version_is_omar()
+} HwVersionT;
+
+
+
 /*
  * Using a couple of different esp32 development boards
  * while waiting for actual omar hardware to arrive.
@@ -107,6 +124,11 @@
 #define OMAR_COIL_2_SET_GPIO            (33)
 #define OMAR_COIL_2_RESET_GPIO          (21)
 
+// Omar ADC inputs:
+#define VOUT_LGHT_SNSR                  (37)	// GPIO37 is on ADC1
+#define VOUT_LGHT_SNSR__ADC_CHANNEL     (ADC_CHANNEL_1)	
+#define HW_DET                          (25)	// GPIO25 is on ADC2 (NOTE: ADC2 cannot be used once WiFi has started!)
+#define HW_DET__ADC_CHANNEL             (ADC2_CHANNEL_8)
 
 
 #endif // HW_OMAR
@@ -125,3 +147,10 @@ int toggle_blue(int argc, char** argv);
 int toggle_green(int argc, char** argv);
 int toggle_red(int argc, char** argv);
 #endif //HW_ESP32_PICOKIT
+
+// Miscellaneous commands:
+
+#if defined(HW_OMAR)
+HwVersionT hw_version(void);
+int hw_version_raw(void);
+#endif	// HW_OMAR

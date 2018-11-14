@@ -24,6 +24,10 @@ static void register_toggle_red();
 static void register_toggle();
 #endif //HW_ESP32_PICOKIT
 
+#if defined(HW_OMAR)
+static void register_hw_detect();
+#endif
+
 static void register_7953();
 
 void register_omar()
@@ -40,6 +44,11 @@ void register_omar()
 #endif //HW_ESP32_PICOKIT
 
     register_7953();
+
+#if defined(HW_OMAR)
+	register_hw_detect();
+#endif
+
 }
 
 #if defined(HW_ESP32_PICOKIT)
@@ -125,6 +134,30 @@ static void register_toggle_white_led1()
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
+
+#if defined(HW_OMAR)
+
+static int print_hw_type(int argc, char** argv)
+{
+	int adc = hw_version_raw();
+
+	printf("ADC reading at the ADC_HW_DET point at boot was %d (0x%02x)\n", 
+		   adc, adc);
+    return 0;
+}
+
+static void register_hw_detect()
+{
+    const esp_console_cmd_t cmd = {
+        .command = "hwdetect",
+        .help = "Print out the ADC reading for Hardware Detect",
+        .hint = NULL,
+        .func = &print_hw_type,
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+#endif	// HW_OMAR
 
 #if defined(HW_ESP32_PICOKIT)
 static void register_toggle_blue()
