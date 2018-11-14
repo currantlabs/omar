@@ -124,11 +124,11 @@ typedef enum {
 #define OMAR_COIL_2_SET_GPIO            (33)
 #define OMAR_COIL_2_RESET_GPIO          (21)
 
-// Omar ADC inputs:
-#define VOUT_LGHT_SNSR                  (37)	// GPIO37 is on ADC1
+// Omar ADC inputs; both the ambient light sensor, and hw detect, are on ADC1:
+#define VOUT_LGHT_SNSR                  (37)
 #define VOUT_LGHT_SNSR__ADC_CHANNEL     (ADC_CHANNEL_1)	
-#define HW_DET                          (25)	// GPIO25 is on ADC2 (NOTE: ADC2 cannot be used once WiFi has started!)
-#define HW_DET__ADC_CHANNEL             (ADC2_CHANNEL_8)
+#define HW_DET                          (38)
+#define HW_DET__ADC_CHANNEL             (ADC_CHANNEL_2)
 
 
 #endif // HW_OMAR

@@ -181,10 +181,8 @@ static void adc_setup(void)
 	// Configure the ambient light sensor ADC input:
 	adc1_config_width(ADC_WIDTH_BIT_12);
 	adc1_config_channel_atten(VOUT_LGHT_SNSR__ADC_CHANNEL, ADC_ATTEN_DB_0);
+	adc1_config_channel_atten(HW_DET__ADC_CHANNEL, ADC_ATTEN_DB_0);
 
-	// Configure the hardware detect ADC input:
-	adc2_config_channel_atten(HW_DET__ADC_CHANNEL, ADC_ATTEN_DB_0);
-	adc2_get_raw(HW_DET__ADC_CHANNEL, ADC_WIDTH_BIT_12, &m_hw_version_raw_adc);
 	
 
 }
@@ -218,23 +216,19 @@ static void print_char_val_type(esp_adc_cal_value_t val_type)
 int hw_version_raw(void)
 {
 	int raw_adc;
-
-	printf("hwdetect value read at boot: %d (0x%02x)\n", m_hw_version_raw_adc, m_hw_version_raw_adc);
-
-	adc2_config_channel_atten(HW_DET__ADC_CHANNEL, ADC_ATTEN_DB_0);
+	esp_adc_cal_characteristics_t *adc_chars;
 
     adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
-    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_2, ADC_ATTEN_DB_0, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
+    esp_adc_cal_value_t val_type = 
+		esp_adc_cal_characterize(
+			ADC_UNIT_1, 
+			ADC_ATTEN_DB_0, 
+			ADC_WIDTH_BIT_12, 
+			DEFAULT_VREF, adc_chars);
+
     print_char_val_type(val_type);
 
-	vTaskDelay(pdMS_TO_TICKS(1000));
-
-	esp_err_t r = adc2_get_raw(HW_DET__ADC_CHANNEL, ADC_WIDTH_BIT_12, &raw_adc);
-
-	if (r != ESP_OK) {
-		printf("There was a problem getting access to ADC2\n");
-		return 0;
-	}
+	raw_adc = adc1_get_raw(HW_DET__ADC_CHANNEL);
 
 	//Convert adc_reading to voltage in mV
 	uint32_t voltage = esp_adc_cal_raw_to_voltage(raw_adc, adc_chars);
