@@ -9,45 +9,24 @@
 
 
 static void gpio_setup(void);
-static void button_setup(void);
 #if defined(HW_OMAR)
 static HwVersionT m_hw_version = HW_VERSION_UNKNOWN;
 static int m_hw_version_raw_adc = 0;
 static void adc_setup(void);
+static void button_setup(void);
 #endif	// HW_OMAR
 
 void omar_setup(void)
 {
     gpio_setup();
+#if defined(HW_OMAR)
     button_setup();
 
-#if defined(HW_OMAR)
     adc_setup();
 #endif
 
     adi_spi_init();
 }
-
-static void configure_gpio_output(uint8_t gpio)
-{
-    gpio_config_t gpio_cfg = {
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = 1,
-    };
-    gpio_cfg.pin_bit_mask = ((uint64_t)1 << gpio);
-    gpio_config(&gpio_cfg);
-}
-
-static void configure_gpio_input(uint8_t gpio)
-{
-    gpio_config_t gpio_cfg = {
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = 0,
-    };
-    gpio_cfg.pin_bit_mask = ((uint64_t)1 << gpio);
-    gpio_config(&gpio_cfg);
-}
-
 
 
 #if defined(HW_ESP32_PICOKIT)
@@ -122,22 +101,28 @@ static void gpio_setup(void)
 
 }
 
-static void button_toggle_state(void)
+#elif defined(HW_OMAR)
+
+static void configure_gpio_output(uint8_t gpio)
 {
-    static bool on = false;
-
-    on = !on;
-
-    // For now, for the hell of it: turn all leds ON, or OFF:
-    gpio_set_level(BLUE_LED, on);
-    gpio_set_level(GREEN_LED, on);
-    gpio_set_level(RED_LED, on);
-
+    gpio_config_t gpio_cfg = {
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = 1,
+    };
+    gpio_cfg.pin_bit_mask = ((uint64_t)1 << gpio);
+    gpio_config(&gpio_cfg);
 }
 
+static void configure_gpio_input(uint8_t gpio)
+{
+    gpio_config_t gpio_cfg = {
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = 0,
+    };
+    gpio_cfg.pin_bit_mask = ((uint64_t)1 << gpio);
+    gpio_config(&gpio_cfg);
+}
 
-
-#elif defined(HW_OMAR)
 
 static void gpio_setup(void)
 {
@@ -172,6 +157,72 @@ static void button_toggle_state1(void)
     // For now, for the hell of it: turn all leds ON, or OFF:
     toggle_white_led1(0, NULL);
 
+}
+
+static void push_btn_cb(void* arg)
+{
+    static uint64_t previous;
+
+    uint64_t current = xTaskGetTickCount();
+    if ((current - previous) > DEBOUNCE_TIME) {
+        previous = current;
+        button_toggle_state();
+    }
+}
+
+static void push_btn_cb1(void* arg)
+{
+    static uint64_t previous;
+
+    uint64_t current = xTaskGetTickCount();
+    if ((current - previous) > DEBOUNCE_TIME) {
+        previous = current;
+        button_toggle_state1();
+    }
+}
+
+static void button_setup(void)
+{
+    button_handle_t btn_handle = 
+        iot_button_create_omar(
+            OMAR_SWITCH_INT0,
+            BUTTON_ACTIVE_LEVEL);
+
+    if (btn_handle) {
+        iot_button_set_evt_cb(btn_handle, BUTTON_CB_RELEASE, push_btn_cb, "RELEASE");
+    }
+
+    button_handle_t btn_handle1 = 
+        iot_button_create_omar(
+            OMAR_SWITCH_INT1,
+            BUTTON_ACTIVE_LEVEL);
+
+    if (btn_handle1) {
+        iot_button_set_evt_cb(btn_handle1, BUTTON_CB_RELEASE, push_btn_cb1, "RELEASE");
+    }
+
+}
+
+int toggle_white_led0(int argc, char** argv)
+{
+    static bool on = false;
+
+    on = !on;
+
+    gpio_set_level(OMAR_WHITE_LED0, on);
+
+    return 0;
+}
+
+int toggle_white_led1(int argc, char** argv)
+{
+    static bool on = false;
+
+    on = !on;
+
+    gpio_set_level(OMAR_WHITE_LED1, on);
+
+    return 0;
 }
 
 static void adc_setup(void)
@@ -265,72 +316,6 @@ int als_raw(void)
 #error No recognized hardware target is #defined!
 
 #endif
-
-static void push_btn_cb(void* arg)
-{
-    static uint64_t previous;
-
-    uint64_t current = xTaskGetTickCount();
-    if ((current - previous) > DEBOUNCE_TIME) {
-        previous = current;
-        button_toggle_state();
-    }
-}
-
-static void push_btn_cb1(void* arg)
-{
-    static uint64_t previous;
-
-    uint64_t current = xTaskGetTickCount();
-    if ((current - previous) > DEBOUNCE_TIME) {
-        previous = current;
-        button_toggle_state1();
-    }
-}
-
-static void button_setup(void)
-{
-    button_handle_t btn_handle = 
-        iot_button_create_omar(
-            OMAR_SWITCH_INT0,
-            BUTTON_ACTIVE_LEVEL);
-
-    if (btn_handle) {
-        iot_button_set_evt_cb(btn_handle, BUTTON_CB_RELEASE, push_btn_cb, "RELEASE");
-    }
-
-    button_handle_t btn_handle1 = 
-        iot_button_create_omar(
-            OMAR_SWITCH_INT1,
-            BUTTON_ACTIVE_LEVEL);
-
-    if (btn_handle1) {
-        iot_button_set_evt_cb(btn_handle1, BUTTON_CB_RELEASE, push_btn_cb1, "RELEASE");
-    }
-
-}
-
-int toggle_white_led0(int argc, char** argv)
-{
-    static bool on = false;
-
-    on = !on;
-
-    gpio_set_level(OMAR_WHITE_LED0, on);
-
-    return 0;
-}
-
-int toggle_white_led1(int argc, char** argv)
-{
-    static bool on = false;
-
-    on = !on;
-
-    gpio_set_level(OMAR_WHITE_LED1, on);
-
-    return 0;
-}
 
 #if defined(HW_ESP32_PICOKIT)
 

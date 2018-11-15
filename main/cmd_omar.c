@@ -14,8 +14,11 @@
 #include "sdkconfig.h"
 
 
+#if defined(HW_OMAR)
 static void register_toggle_white_led0();
 static void register_toggle_white_led1();
+#endif
+
 
 #if defined(HW_ESP32_PICOKIT)
 static void register_toggle_blue();
@@ -33,8 +36,6 @@ static void register_7953();
 
 void register_omar()
 {
-    register_toggle_white_led0();
-    register_toggle_white_led1();
 
 #if defined(HW_ESP32_PICOKIT)
     register_toggle_blue();
@@ -47,6 +48,8 @@ void register_omar()
     register_7953();
 
 #if defined(HW_OMAR)
+    register_toggle_white_led0();
+    register_toggle_white_led1();
 	register_hw_detect();
 	register_als();
 #endif
@@ -115,6 +118,9 @@ static void register_toggle()
 }
 #endif //HW_ESP32_PICOKIT
 
+
+#if defined(HW_OMAR)
+
 static void register_toggle_white_led0()
 {
     const esp_console_cmd_t cmd = {
@@ -136,8 +142,6 @@ static void register_toggle_white_led1()
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
-
-#if defined(HW_OMAR)
 
 static int print_hw_type(int argc, char** argv)
 {
