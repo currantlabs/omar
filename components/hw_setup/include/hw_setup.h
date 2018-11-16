@@ -48,9 +48,9 @@ typedef enum {
  *
  */
 
-//#define HW_OMAR
+#define HW_OMAR
 //#define HW_ESP32_DEVKITC
-#define HW_ESP32_PICOKIT
+//#define HW_ESP32_PICOKIT
 
 #ifdef    HW_ESP32_DEVKITC
 
