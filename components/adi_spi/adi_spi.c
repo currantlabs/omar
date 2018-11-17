@@ -572,6 +572,7 @@ void adi_spi_init(void)
 
 }
 
+#ifdef REPEAT_SUCCESS_OF_COMMIT_80c69d9
 //copy the kind of call I see succeeding in the esp_idf LCD samle:
 /* Send a command to the LCD. Uses spi_device_polling_transmit, which waits
  * until the transfer is complete.
@@ -591,6 +592,7 @@ static void lcd_cmd(spi_device_handle_t spi, const uint8_t cmd)
     ret=spi_device_polling_transmit(spi, &t);  //Transmit!
     assert(ret==ESP_OK);            //Should have had no issues.
 }
+#endif //REPEAT_SUCCESS_OF_COMMIT_80c69d9
 
 void lcd_get_id(void)
 {
