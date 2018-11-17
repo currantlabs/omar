@@ -1,6 +1,7 @@
 #include <driver/gpio.h>
 #include "hw_setup.h"
 #include "adi_spi.h"
+#include "i2c.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <iot_button.h>
@@ -12,8 +13,8 @@ static void gpio_setup(void);
 #if defined(HW_OMAR)
 static HwVersionT m_hw_version = HW_VERSION_UNKNOWN;
 static int m_hw_version_raw_adc = 0;
-static void adc_setup(void);
 static void button_setup(void);
+static void adc_setup(void);
 #endif	// HW_OMAR
 
 void omar_setup(void)
@@ -21,8 +22,8 @@ void omar_setup(void)
     gpio_setup();
 #if defined(HW_OMAR)
     button_setup();
-
     adc_setup();
+    i2c_init();
 #endif
 
     adi_spi_init();
@@ -113,6 +114,7 @@ static void configure_gpio_output(uint8_t gpio)
     gpio_config(&gpio_cfg);
 }
 
+#ifdef CONFIGURING_MORE_GPIO_INPUTS
 static void configure_gpio_input(uint8_t gpio)
 {
     gpio_config_t gpio_cfg = {
@@ -122,6 +124,7 @@ static void configure_gpio_input(uint8_t gpio)
     gpio_cfg.pin_bit_mask = ((uint64_t)1 << gpio);
     gpio_config(&gpio_cfg);
 }
+#endif //CONFIGURING_MORE_GPIO_INPUTS
 
 
 static void gpio_setup(void)

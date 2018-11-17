@@ -3,21 +3,28 @@
  * s5852a.c - routines to control the S5852-A temperature module
  */
 
+
+
 #include <stdint.h>
 #include <stdbool.h>
+#include "i2c.h"
+#include "s5852a.h"
+#if		defined(NEW_DAY)
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "app_error.h"
 #include "console.h"
-#include "i2c.h"
-#include "s5852a.h"
 #include "test.h"
 #include "log.h"
 #include "nrf_delay.h"
 #include "wdt.h"
 #include "ltime.h"
 #include "factory.h"
+#endif//defined(NEW_DAY)
+
+#include "esp_err.h"
+
 
 
 #define S5852A_I2C_ADDRESS      0x18
@@ -33,12 +40,15 @@
 #define TICK_TIMER_INTERVAL_MS (5000)
 
 static float raw_to_float(uint8_t raw[2]);
+#if		defined(NEW_DAY)
 static int console_command(int argc, char *argv[]);
 static int test(void);
 static int factory_temperature(void);
 static int temperature_record(int count);
-static bool m_initialized;
+#endif//defined(NEW_DAY)
+static bool m_initialized = false;
 
+#if		defined(NEW_DAY)
 static int m_temperature_sample_counter;
 
 APP_TIMER_DEF(m_temperature_sample_timer_id);
@@ -56,7 +66,7 @@ static void tick_timer_handler(void * p_context)
     else {
 
         float temperature;
-        ret_code_t ret = s5852a_get(&temperature);
+        esp_err_t ret = s5852a_get(&temperature);
         if (ret != NRF_SUCCESS) {
             LOG(LOG_LEVEL_DEBUG, "error reading temperature!\r\n");
         } else {
@@ -65,17 +75,19 @@ static void tick_timer_handler(void * p_context)
     }
 
 }
+#endif//defined(NEW_DAY)
 
 void s5852a_init(void)
 {
     //set pointer to the Ambient Temperature register
     uint8_t pointer = S5852A_TEMP_REG;
-    ret_code_t ret = i2c_tx(S5852A_I2C_ADDRESS, &pointer, 1, false);
-    if (ret != NRF_SUCCESS) {
-        LOG(LOG_LEVEL_ERROR, "error: can't set s5852 pointer!\r\n");
+    esp_err_t ret = i2c_tx(S5852A_I2C_ADDRESS, &pointer, 1);
+    if (ret != ESP_OK) {
+        printf("error: can't set s5852 pointer!\n");
         return;
     }
 
+#if		defined(NEW_DAY)
     factory_register_cmd(FACTORY_PREASSY__CHECKTEMP, 
                          FACTORY_FUNC__SIMPLE, 
                          (factory_fptrT ) {.simple_cmd = factory_temperature});
@@ -89,30 +101,34 @@ void s5852a_init(void)
                                 APP_TIMER_MODE_REPEATED,
                                 tick_timer_handler);
     APP_ERROR_CHECK(err_code);
+#endif//defined(NEW_DAY)
 
+	printf("s5852 successfully initialized\n");
     m_initialized = true;
 }
 
 
+#if		defined(NEW_DAY)
 static void usage(void)
 {
     LOG(LOG_LEVEL_DEBUG, "usage: temperature  -- dumps current temperature to console\r\n");
     LOG(LOG_LEVEL_DEBUG, "usage: temperature record  -- dumps temperature to console every 30 seconds for 5 minutes\r\n");
     LOG(LOG_LEVEL_DEBUG, "usage: temperature record <count> -- dumps temperature to console every 30 seconds for <count> times\r\n");
 }
+#endif//defined(NEW_DAY)
 
 /*
  * temperature_get - get current temperature.
  *  returns a floating point value with 0.25C resolution
  */
-ret_code_t s5852a_get(float *temperature)
+esp_err_t s5852a_get(float *temperature)
 {
-    if (!m_initialized) return NRF_ERROR_INVALID_STATE;
+    if (!m_initialized) return ESP_FAIL;
 
     uint8_t pointer = S5852A_TEMP_REG;
-    ret_code_t ret = i2c_tx(S5852A_I2C_ADDRESS, &pointer, 1, false);
-    if (ret != NRF_SUCCESS) {
-        LOG(LOG_LEVEL_ERROR, "error: can't set s5852 pointer!\r\n");
+    esp_err_t ret = i2c_tx(S5852A_I2C_ADDRESS, &pointer, 1);
+    if (ret != ESP_OK) {
+        printf("error: can't set s5852 pointer!\n");
         return -1;
     }
 
@@ -141,6 +157,7 @@ static float raw_to_float(uint8_t raw[2])
     return temp;
 }
 
+#if		defined(NEW_DAY)
 static int console_command(int argc, char *argv[])
 {
     if (argc > 2) {
@@ -151,7 +168,7 @@ static int console_command(int argc, char *argv[])
     if (argc == 0) {
         float temperature;
         ret_code_t ret = s5852a_get(&temperature);
-        if (ret != NRF_SUCCESS) {
+        if (ret != ESP_OK) {
             LOG(LOG_LEVEL_DEBUG, "error reading temperature!\r\n");
         } else {
             LOG(LOG_LEVEL_DEBUG, "current temperature: %u\r\n", (unsigned int)temperature);
@@ -250,3 +267,4 @@ static int factory_temperature(void)
     return FACTORY_TEST_STATUS__PASSED;
 
 }
+#endif//defined(NEW_DAY)

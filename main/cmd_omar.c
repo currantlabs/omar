@@ -12,6 +12,9 @@
 #include "hw_setup.h"
 #include "adi_spi.h"
 #include "sdkconfig.h"
+#if defined(HW_OMAR)
+#include "s5852a.h"
+#endif
 
 
 #if defined(HW_OMAR)
@@ -30,6 +33,7 @@ static void register_toggle();
 #if defined(HW_OMAR)
 static void register_hw_detect();
 static void register_als();
+static void register_temperature();
 #endif
 
 static void register_7953();
@@ -52,6 +56,7 @@ void register_omar()
     register_toggle_white_led1();
 	register_hw_detect();
 	register_als();
+	register_temperature();
 #endif
 
 }
@@ -183,6 +188,28 @@ static void register_als()
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
+static int print_temp(int argc, char** argv)
+{
+	float temp; 
+
+	s5852a_get(&temp);
+
+	printf("Current temperature is %02.2f\n", temp);
+    return 0;
+}
+
+static void register_temperature()
+{
+    const esp_console_cmd_t cmd = {
+        .command = "temp",
+        .help = "Print out the current temperature reading from the S-5852A temp sensor",
+        .hint = NULL,
+        .func = &print_temp,
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+
 #endif	// HW_OMAR
 
 #if defined(HW_ESP32_PICOKIT)
@@ -243,7 +270,7 @@ static int ad7953(int argc, char** argv)
         adi_hw_reset();
         ESP_LOGI(__func__, "performed a hardware reset");
     } else if (strcmp(cmd, "test") == 0) {
-        lcd_get_id();
+        lcd_get_id(); 
     } else {
         ESP_LOGI(__func__, "'%s' is not a recognized AD7953 command - please enter either \"hwreset\" or \"swreset\"",
                  cmd);

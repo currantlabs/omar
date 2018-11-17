@@ -131,6 +131,12 @@ typedef enum {
 #define HW_DET__ADC_CHANNEL             (ADC_CHANNEL_2)
 
 
+// Omar I2C:
+#define I2C_SDA			                (23)	//(18)	from the esp_idf i2c sample
+#define I2C_SCL			                (24)	//(19)	from the esp_idf i2c sample
+#define OMAR_ESP32_I2C_CLOCKFREQHZ		(400000)
+
+
 #endif // HW_OMAR
 
 
