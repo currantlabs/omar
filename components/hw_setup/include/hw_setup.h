@@ -95,8 +95,6 @@ typedef enum {
 
 #ifdef    HW_OMAR
 
-#define BUTTON_GPIO                     (0)
-
 // ADI7953 Energy Monitor chip signals
 #define ADI_RESET                       (10)    // Just a GPIO output. (RESET_N_MON)
 #define OMAR_SPIM0_SCK_PIN              (18)    // SPI clock GPIO pin number. (SPI_MON_CLK)
@@ -132,8 +130,8 @@ typedef enum {
 
 
 // Omar I2C:
-#define I2C_SDA			                (23)	//(18)	from the esp_idf i2c sample
-#define I2C_SCL			                (24)	//(19)	from the esp_idf i2c sample
+#define I2C_SDA			                (0)	
+#define I2C_SCL			                (4)	
 #define OMAR_ESP32_I2C_CLOCKFREQHZ		(400000)
 
 
