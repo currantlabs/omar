@@ -133,6 +133,7 @@ typedef enum {
 #define I2C_SDA			                (0)	
 #define I2C_SCL			                (4)	
 #define OMAR_ESP32_I2C_CLOCKFREQHZ		(400000)
+#define OMAR_I2C_MASTER_PORT			(I2C_NUM_1)
 
 
 #endif // HW_OMAR

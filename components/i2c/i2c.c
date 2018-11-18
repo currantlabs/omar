@@ -38,7 +38,7 @@ void i2c_init(void)
 {
 
 	printf("%s(): 01 I2C_SDA is GPIO %d, and I2C_SCL is GPIO %d.\n", __func__, I2C_SDA, I2C_SCL);
-    int i2c_master_port = I2C_NUM_1;	// There are 2 to choose from on the esp32: I2C_NUM_1 or I2C_NUM_0
+    int i2c_master_port = OMAR_I2C_MASTER_PORT;	
     i2c_config_t conf;
     conf.mode = I2C_MODE_MASTER;
     conf.sda_io_num = I2C_SDA;
@@ -97,7 +97,7 @@ esp_err_t i2c_tx(uint8_t address, uint8_t* data_wr, size_t size)
     i2c_master_write_byte(cmd, ( address << 1 ) | I2C_MASTER_WRITE, ACK_CHECK_EN);
     i2c_master_write(cmd, data_wr, size, ACK_CHECK_EN);
     i2c_master_stop(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
+    esp_err_t ret = i2c_master_cmd_begin(OMAR_I2C_MASTER_PORT, cmd, 1000 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
     return ret;
 }
