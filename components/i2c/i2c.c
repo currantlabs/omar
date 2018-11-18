@@ -47,7 +47,6 @@ void i2c_init(void)
     conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
     conf.master.clk_speed = OMAR_ESP32_I2C_CLOCKFREQHZ;
     i2c_param_config(i2c_master_port, &conf);
-	printf("%s(): 03\n", __func__);
     i2c_driver_install(i2c_master_port, conf.mode, 0, 0, 0);
 	printf("%s(): 04\n", __func__);
 
