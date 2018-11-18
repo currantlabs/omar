@@ -45,7 +45,7 @@ void i2c_init(void)
     conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
     conf.scl_io_num = I2C_SCL;
     conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
-    conf.master.clk_speed = //OMAR_ESP32_I2C_CLOCKFREQHZ;
+    conf.master.clk_speed = OMAR_ESP32_I2C_CLOCKFREQHZ;
 	printf("%s(): 02\n", __func__);
     i2c_param_config(i2c_master_port, &conf);
 	printf("%s(): 03\n", __func__);
@@ -53,7 +53,6 @@ void i2c_init(void)
 	printf("%s(): 04\n", __func__);
 
 	s5852a_init();
-	printf("%s(): 05\n", __func__);
 
 }
 
