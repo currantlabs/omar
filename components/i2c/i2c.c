@@ -52,7 +52,7 @@ void i2c_init(void)
     i2c_driver_install(i2c_master_port, conf.mode, 0, 0, 0);
 	printf("%s(): 04\n", __func__);
 
-	//	s5852a_init();
+	s5852a_init();
 	printf("%s(): 05\n", __func__);
 
 }
@@ -93,13 +93,21 @@ static ret_code_t twi_master_init(void)
 
 esp_err_t i2c_tx(uint8_t address, uint8_t* data_wr, size_t size)
 {
+	printf("%s(): 01\n", __func__);
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+	printf("%s(): 02\n", __func__);
     i2c_master_start(cmd);
+	printf("%s(): 03\n", __func__);
     i2c_master_write_byte(cmd, ( address << 1 ) | I2C_MASTER_WRITE, ACK_CHECK_EN);
+	printf("%s(): 04\n", __func__);
     i2c_master_write(cmd, data_wr, size, ACK_CHECK_EN);
+	printf("%s(): 05\n", __func__);
     i2c_master_stop(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
+	printf("%s(): 06\n", __func__);
+    esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
+	printf("%s(): 07\n", __func__);
     i2c_cmd_link_delete(cmd);
+	printf("%s(): 08\n", __func__);
     return ret;
 }
 
