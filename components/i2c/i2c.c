@@ -48,7 +48,6 @@ void i2c_init(void)
     conf.master.clk_speed = OMAR_ESP32_I2C_CLOCKFREQHZ;
     i2c_param_config(i2c_master_port, &conf);
     i2c_driver_install(i2c_master_port, conf.mode, 0, 0, 0);
-	printf("%s(): 04\n", __func__);
 
 	s5852a_init();
 
