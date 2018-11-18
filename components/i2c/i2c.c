@@ -37,7 +37,6 @@ static int console_command(int argc, char *argv[]);
 void i2c_init(void)
 {
 
-	printf("%s(): 01 I2C_SDA is GPIO %d, and I2C_SCL is GPIO %d.\n", __func__, I2C_SDA, I2C_SCL);
     int i2c_master_port = OMAR_I2C_MASTER_PORT;	
     i2c_config_t conf;
     conf.mode = I2C_MODE_MASTER;
