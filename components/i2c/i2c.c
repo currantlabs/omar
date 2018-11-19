@@ -10,7 +10,7 @@
 
 
 
-#if		defined(NEW_DAY)
+#if     defined(NEW_DAY)
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -37,7 +37,7 @@ static int console_command(int argc, char *argv[]);
 void i2c_init(void)
 {
 
-    int i2c_master_port = OMAR_I2C_MASTER_PORT;	
+    int i2c_master_port = OMAR_I2C_MASTER_PORT; 
     i2c_config_t conf;
     conf.mode = I2C_MODE_MASTER;
     conf.sda_io_num = I2C_SDA;
@@ -48,11 +48,11 @@ void i2c_init(void)
     i2c_param_config(i2c_master_port, &conf);
     i2c_driver_install(i2c_master_port, conf.mode, 0, 0, 0);
 
-	s5852a_init();
+    s5852a_init();
 
 }
 
-#if		defined(NEW_DAY)
+#if     defined(NEW_DAY)
 static ret_code_t twi_master_init(void)
 {
     ret_code_t ret;
@@ -99,14 +99,26 @@ esp_err_t i2c_tx(uint8_t address, uint8_t* data_wr, size_t size)
 }
 
 //FIXME: change API, we don't need xfer_pending for i2c_rx
-esp_err_t i2c_rx(uint8_t address, uint8_t *p_data, uint32_t length, bool xfer_pending)
+esp_err_t i2c_rx(uint8_t address, uint8_t *data_rd, size_t size)
 {
-  return ESP_OK;
-  //    return nrf_drv_twi_rx(&m_twi_master, address, p_data, length);
+    if (size == 0) {
+        return ESP_OK;
+    }
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, ( address << 1 ) | I2C_MASTER_READ, ACK_CHECK_EN);
+    if (size > 1) {
+        i2c_master_read(cmd, data_rd, size - 1, ACK_VAL);
+    }
+    i2c_master_read_byte(cmd, data_rd + size - 1, NACK_VAL);
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(OMAR_I2C_MASTER_PORT, cmd, 1000 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret;
 }
 
 
-#if		defined(NEW_DAY)
+#if     defined(NEW_DAY)
 static void usage(void)
 {
     LOG(LOG_LEVEL_DEBUG, "usage: i2c write  -- simple write test\r\n");

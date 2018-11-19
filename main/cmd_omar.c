@@ -12,9 +12,9 @@
 #include "hw_setup.h"
 #include "adi_spi.h"
 #include "sdkconfig.h"
-#if defined(HW_OMAR)
+#if defined(HW_OMAR) || defined(HW_ESP32_PICOKIT)
 #include "s5852a.h"
-#endif
+#endif //defined(HW_OMAR) || defined(HW_ESP32_PICOKIT)
 
 
 #if defined(HW_OMAR)
@@ -28,6 +28,7 @@ static void register_toggle_blue();
 static void register_toggle_green();
 static void register_toggle_red();
 static void register_toggle();
+static void register_temperature();
 #endif //HW_ESP32_PICOKIT
 
 #if defined(HW_OMAR)
@@ -47,6 +48,7 @@ void register_omar()
     register_toggle_red();
 
     register_toggle();
+    register_temperature();
 #endif //HW_ESP32_PICOKIT
 
     register_7953();
@@ -54,9 +56,9 @@ void register_omar()
 #if defined(HW_OMAR)
     register_toggle_white_led0();
     register_toggle_white_led1();
-	register_hw_detect();
-	register_als();
-	register_temperature();
+    register_hw_detect();
+    register_als();
+    register_temperature();
 #endif
 
 }
@@ -121,7 +123,33 @@ static void register_toggle()
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
+
 #endif //HW_ESP32_PICOKIT
+
+#if defined(HW_OMAR) || defined(HW_ESP32_PICOKIT)
+static int print_temp(int argc, char** argv)
+{
+    float temp; 
+
+    s5852a_get(&temp);
+
+    printf("Current temperature is %02.2f\n", temp);
+    return 0;
+}
+
+static void register_temperature()
+{
+    const esp_console_cmd_t cmd = {
+        .command = "temp",
+        .help = "Print out the current temperature reading from the S-5852A temp sensor",
+        .hint = NULL,
+        .func = &print_temp,
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+#endif //defined(HW_OMAR) || defined(HW_ESP32_PICOKIT)
+
+
 
 
 #if defined(HW_OMAR)
@@ -150,10 +178,10 @@ static void register_toggle_white_led1()
 
 static int print_hw_type(int argc, char** argv)
 {
-	int adc = hw_version_raw();
+    int adc = hw_version_raw();
 
-	printf("ADC reading at the ADC_HW_DET point was %d (0x%02x)\n", 
-		   adc, adc);
+    printf("ADC reading at the ADC_HW_DET point was %d (0x%02x)\n", 
+           adc, adc);
     return 0;
 }
 
@@ -170,10 +198,10 @@ static void register_hw_detect()
 
 static int print_als(int argc, char** argv)
 {
-	int adc = als_raw();
+    int adc = als_raw();
 
-	printf("Ambient light sensor reading is %d (0x%02x)\n", 
-		   adc, adc);
+    printf("Ambient light sensor reading is %d (0x%02x)\n", 
+           adc, adc);
     return 0;
 }
 
@@ -190,11 +218,11 @@ static void register_als()
 
 static int print_temp(int argc, char** argv)
 {
-	float temp; 
+    float temp; 
 
-	s5852a_get(&temp);
+    s5852a_get(&temp);
 
-	printf("Current temperature is %02.2f\n", temp);
+    printf("Current temperature is %02.2f\n", temp);
     return 0;
 }
 
@@ -210,7 +238,7 @@ static void register_temperature()
 }
 
 
-#endif	// HW_OMAR
+#endif  // HW_OMAR
 
 #if defined(HW_ESP32_PICOKIT)
 static void register_toggle_blue()

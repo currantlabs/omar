@@ -21,10 +21,10 @@ static void adc_setup(void);
 void omar_setup(void)
 {
     gpio_setup();
+    i2c_init();
 #if defined(HW_OMAR)
     button_setup();
     adc_setup();
-    i2c_init();
 #endif
 
     adi_spi_init();

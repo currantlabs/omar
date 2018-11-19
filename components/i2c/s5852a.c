@@ -9,7 +9,7 @@
 #include <stdbool.h>
 #include "i2c.h"
 #include "s5852a.h"
-#if		defined(NEW_DAY)
+#if     defined(NEW_DAY)
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -40,7 +40,7 @@
 #define TICK_TIMER_INTERVAL_MS (5000)
 
 static float raw_to_float(uint8_t raw[2]);
-#if		defined(NEW_DAY)
+#if     defined(NEW_DAY)
 static int console_command(int argc, char *argv[]);
 static int test(void);
 static int factory_temperature(void);
@@ -48,7 +48,7 @@ static int temperature_record(int count);
 #endif//defined(NEW_DAY)
 static bool m_initialized = false;
 
-#if		defined(NEW_DAY)
+#if     defined(NEW_DAY)
 static int m_temperature_sample_counter;
 
 APP_TIMER_DEF(m_temperature_sample_timer_id);
@@ -87,7 +87,7 @@ void s5852a_init(void)
         return;
     }
 
-#if		defined(NEW_DAY)
+#if     defined(NEW_DAY)
     factory_register_cmd(FACTORY_PREASSY__CHECKTEMP, 
                          FACTORY_FUNC__SIMPLE, 
                          (factory_fptrT ) {.simple_cmd = factory_temperature});
@@ -103,12 +103,12 @@ void s5852a_init(void)
     APP_ERROR_CHECK(err_code);
 #endif//defined(NEW_DAY)
 
-	printf("s5852 successfully initialized\n");
+    printf("s5852 successfully initialized\n");
     m_initialized = true;
 }
 
 
-#if		defined(NEW_DAY)
+#if     defined(NEW_DAY)
 static void usage(void)
 {
     LOG(LOG_LEVEL_DEBUG, "usage: temperature  -- dumps current temperature to console\r\n");
@@ -133,10 +133,10 @@ esp_err_t s5852a_get(float *temperature)
     }
 
     uint8_t raw[2];
-    ret = i2c_rx(S5852A_I2C_ADDRESS, raw, 2, false);
+    ret = i2c_rx(S5852A_I2C_ADDRESS, raw, 2);
 
-	printf("%s(): Raw return values, raw[0] = 0x%02x, raw[1] = 0x%02x\n", __func__, raw[0], raw[1]);
-	
+    printf("%s(): Raw return values, raw[0] = 0x%02x, raw[1] = 0x%02x\n", __func__, raw[0], raw[1]);
+    
     *temperature = raw_to_float(raw);
     return ret;
 }
@@ -159,7 +159,7 @@ static float raw_to_float(uint8_t raw[2])
     return temp;
 }
 
-#if		defined(NEW_DAY)
+#if     defined(NEW_DAY)
 static int console_command(int argc, char *argv[])
 {
     if (argc > 2) {
