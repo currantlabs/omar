@@ -135,6 +135,8 @@ esp_err_t s5852a_get(float *temperature)
     uint8_t raw[2];
     ret = i2c_rx(S5852A_I2C_ADDRESS, raw, 2, false);
 
+	printf("%s(): Raw return values, raw[0] = 0x%02x, raw[1] = 0x%02x\n", __func__, raw[0], raw[1]);
+	
     *temperature = raw_to_float(raw);
     return ret;
 }
