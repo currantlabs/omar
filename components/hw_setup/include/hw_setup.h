@@ -48,9 +48,9 @@ typedef enum {
  *
  */
 
-#define HW_OMAR
+//#define HW_OMAR
 //#define HW_ESP32_DEVKITC
-//#define HW_ESP32_PICOKIT
+#define HW_ESP32_PICOKIT
 
 #ifdef    HW_ESP32_DEVKITC
 
@@ -63,11 +63,16 @@ typedef enum {
 
 #ifdef    HW_ESP32_PICOKIT
 
+// Simulating the Omar i2c setup on the PicoKit devboard
+#define I2C_SDA			                (0)	
+#define I2C_SCL			                (4)	
+#define OMAR_ESP32_I2C_CLOCKFREQHZ		(400000)
+#define OMAR_I2C_MASTER_PORT			(I2C_NUM_1)
+
 #define BLUE_LED                        (21)
 #define GREEN_LED                       (22)
 #define RED_LED                         (9)
 
-#define BUTTON_GPIO                     (0)
 #define BUTTON_ACTIVE_LEVEL             (0)
 #define DEBOUNCE_TIME                   (30)
 
