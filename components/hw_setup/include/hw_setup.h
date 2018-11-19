@@ -48,9 +48,9 @@ typedef enum {
  *
  */
 
-//#define HW_OMAR
+#define HW_OMAR
 //#define HW_ESP32_DEVKITC
-#define HW_ESP32_PICOKIT
+//#define HW_ESP32_PICOKIT
 
 #ifdef    HW_ESP32_DEVKITC
 
@@ -64,10 +64,10 @@ typedef enum {
 #ifdef    HW_ESP32_PICOKIT
 
 // Simulating the Omar i2c setup on the PicoKit devboard
-#define I2C_SDA			                (0)	
-#define I2C_SCL			                (4)	
-#define OMAR_ESP32_I2C_CLOCKFREQHZ		(400000)
-#define OMAR_I2C_MASTER_PORT			(I2C_NUM_1)
+#define I2C_SDA                         (0) 
+#define I2C_SCL                         (4) 
+#define OMAR_ESP32_I2C_CLOCKFREQHZ      (400000)
+#define OMAR_I2C_MASTER_PORT            (I2C_NUM_1)
 
 #define BLUE_LED                        (21)
 #define GREEN_LED                       (22)
@@ -120,6 +120,9 @@ typedef enum {
 #define OMAR_SWITCH_INT0                (36)   // aka "SENSOR_VP" (Pin 5)
 #define OMAR_SWITCH_INT1                (39)   // aka "SENSOR_VN" (Pin 8)
 
+// Omar plug detect:
+#define PLUG_DETECT1                    (34)
+#define PLUG_DETECT2                    (35)
 
 // Omar Coils:
 #define OMAR_COIL_1_SET_GPIO            (32)
@@ -129,16 +132,16 @@ typedef enum {
 
 // Omar ADC inputs; both the ambient light sensor, and hw detect, are on ADC1:
 #define VOUT_LGHT_SNSR                  (37)
-#define VOUT_LGHT_SNSR__ADC_CHANNEL     (ADC_CHANNEL_1)	
+#define VOUT_LGHT_SNSR__ADC_CHANNEL     (ADC_CHANNEL_1) 
 #define HW_DET                          (38)
 #define HW_DET__ADC_CHANNEL             (ADC_CHANNEL_2)
 
 
 // Omar I2C:
-#define I2C_SDA			                (0)	
-#define I2C_SCL			                (4)	
-#define OMAR_ESP32_I2C_CLOCKFREQHZ		(400000)
-#define OMAR_I2C_MASTER_PORT			(I2C_NUM_1)
+#define I2C_SDA                         (0) 
+#define I2C_SCL                         (4) 
+#define OMAR_ESP32_I2C_CLOCKFREQHZ      (400000)
+#define OMAR_I2C_MASTER_PORT            (I2C_NUM_1)
 
 
 #endif // HW_OMAR
@@ -164,4 +167,4 @@ int toggle_red(int argc, char** argv);
 HwVersionT hw_version(void);
 int hw_version_raw(void);
 int als_raw(void);
-#endif	// HW_OMAR
+#endif  // HW_OMAR

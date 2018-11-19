@@ -14,8 +14,9 @@ static void gpio_setup(void);
 static HwVersionT m_hw_version = HW_VERSION_UNKNOWN;
 static int m_hw_version_raw_adc = 0;
 static void button_setup(void);
+static void plug_detect_setup(void);
 static void adc_setup(void);
-#endif	// HW_OMAR
+#endif  // HW_OMAR
 
 void omar_setup(void)
 {
@@ -204,6 +205,94 @@ static void button_setup(void)
         iot_button_set_evt_cb(btn_handle1, BUTTON_CB_RELEASE, push_btn_cb1, "RELEASE");
     }
 
+    plug_detect_setup();
+
+}
+
+static void handle_plug_unplug_event(uint32_t plug, bool on)
+{
+    switch(plug) {
+
+    case PLUG_DETECT1:
+        gpio_set_level(OMAR_WHITE_LED0, on);
+        break;
+
+    case PLUG_DETECT2:
+        gpio_set_level(OMAR_WHITE_LED1, on);
+        break;
+
+    default:
+        printf("%s(): Invalid plug identifier %d\n", __func__, plug);
+        break;
+    }
+}
+
+static void plug_detect1_plug_cb(void* arg)
+{
+    static uint64_t previous;
+
+    uint64_t current = xTaskGetTickCount();
+    if ((current - previous) > DEBOUNCE_TIME) {
+        previous = current;
+        handle_plug_unplug_event(PLUG_DETECT1, true);
+    }
+}
+
+static void plug_detect1_unplug_cb(void* arg)
+{
+    static uint64_t previous;
+
+    uint64_t current = xTaskGetTickCount();
+    if ((current - previous) > DEBOUNCE_TIME) {
+        previous = current;
+        handle_plug_unplug_event(PLUG_DETECT1, false);
+    }
+}
+
+static void plug_detect2_plug_cb(void* arg)
+{
+    static uint64_t previous;
+
+    uint64_t current = xTaskGetTickCount();
+    if ((current - previous) > DEBOUNCE_TIME) {
+        previous = current;
+        handle_plug_unplug_event(PLUG_DETECT2, true);
+    }
+}
+
+static void plug_detect2_unplug_cb(void* arg)
+{
+    static uint64_t previous;
+
+    uint64_t current = xTaskGetTickCount();
+    if ((current - previous) > DEBOUNCE_TIME) {
+        previous = current;
+        handle_plug_unplug_event(PLUG_DETECT2, false);
+    }
+}
+
+static void plug_detect_setup(void)
+{
+    button_handle_t plug_detect1 = 
+        iot_button_create_omar(
+            PLUG_DETECT1,
+            BUTTON_ACTIVE_LEVEL);
+
+    if (plug_detect1) {
+        iot_button_set_evt_cb(plug_detect1, BUTTON_CB_PUSH, plug_detect1_plug_cb, "PLUG");
+        iot_button_set_evt_cb(plug_detect1, BUTTON_CB_RELEASE, plug_detect1_unplug_cb, "UNPLUG");
+    }
+
+    button_handle_t plug_detect2 = 
+        iot_button_create_omar(
+            PLUG_DETECT2,
+            BUTTON_ACTIVE_LEVEL);
+
+    if (plug_detect2) {
+        iot_button_set_evt_cb(plug_detect2, BUTTON_CB_PUSH, plug_detect2_plug_cb, "PLUG");
+        iot_button_set_evt_cb(plug_detect2, BUTTON_CB_RELEASE, plug_detect2_unplug_cb, "UNPLUG");
+    }
+
 }
 
 int toggle_white_led0(int argc, char** argv)
@@ -230,14 +319,14 @@ int toggle_white_led1(int argc, char** argv)
 
 static void adc_setup(void)
 {
-	
+    
 
-	// Configure the ambient light sensor ADC input:
-	adc1_config_width(ADC_WIDTH_BIT_12);
-	adc1_config_channel_atten(VOUT_LGHT_SNSR__ADC_CHANNEL, ADC_ATTEN_DB_11);
-	adc1_config_channel_atten(HW_DET__ADC_CHANNEL, ADC_ATTEN_DB_0);
+    // Configure the ambient light sensor ADC input:
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(VOUT_LGHT_SNSR__ADC_CHANNEL, ADC_ATTEN_DB_11);
+    adc1_config_channel_atten(HW_DET__ADC_CHANNEL, ADC_ATTEN_DB_0);
 
-	
+    
 
 }
 
@@ -268,26 +357,26 @@ static void print_char_val_type(esp_adc_cal_value_t val_type)
 
 int hw_version_raw(void)
 {
-	int raw_adc;
-	esp_adc_cal_characteristics_t *adc_chars;
+    int raw_adc;
+    esp_adc_cal_characteristics_t *adc_chars;
 
     adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
     esp_adc_cal_value_t val_type = 
-		esp_adc_cal_characterize(
-			ADC_UNIT_1, 
-			ADC_ATTEN_DB_0, 
-			ADC_WIDTH_BIT_12, 
-			DEFAULT_VREF, adc_chars); 
+        esp_adc_cal_characterize(
+            ADC_UNIT_1, 
+            ADC_ATTEN_DB_0, 
+            ADC_WIDTH_BIT_12, 
+            DEFAULT_VREF, adc_chars); 
 
     print_char_val_type(val_type);
 
-	raw_adc = adc1_get_raw(HW_DET__ADC_CHANNEL);
+    raw_adc = adc1_get_raw(HW_DET__ADC_CHANNEL);
 
-	//Convert adc_reading to voltage in mV
-	uint32_t voltage = esp_adc_cal_raw_to_voltage(raw_adc, adc_chars);
-	printf("Raw: %d\tVoltage: %dmV (Expected value is 500mV)\n", raw_adc, voltage);
+    //Convert adc_reading to voltage in mV
+    uint32_t voltage = esp_adc_cal_raw_to_voltage(raw_adc, adc_chars);
+    printf("Raw: %d\tVoltage: %dmV (Expected value is 500mV)\n", raw_adc, voltage);
 
-	return raw_adc;
+    return raw_adc;
 }
 
 HwVersionT hw_version(void)
@@ -295,12 +384,12 @@ HwVersionT hw_version(void)
     if (m_hw_version != HW_VERSION_UNKNOWN) return m_hw_version;
     else {
         HwVersionT version = 
-			(m_hw_version_raw_adc >= 110 && m_hw_version_raw_adc <= 200)
-			?
-			HW_VERSION_OMAR_1_0
-			:
-			HW_VERSION_UNKNOWN;
-			
+            (m_hw_version_raw_adc >= 110 && m_hw_version_raw_adc <= 200)
+            ?
+            HW_VERSION_OMAR_1_0
+            :
+            HW_VERSION_UNKNOWN;
+            
         m_hw_version = version;
         return version;
     }
@@ -309,7 +398,7 @@ HwVersionT hw_version(void)
 int als_raw(void)
 {
 
-	return adc1_get_raw(VOUT_LGHT_SNSR__ADC_CHANNEL);
+    return adc1_get_raw(VOUT_LGHT_SNSR__ADC_CHANNEL);
 
 }
 
