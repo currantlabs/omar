@@ -118,8 +118,16 @@ static void initialize_console()
 #endif
 }
 
+#if defined(POWERTEST)
+extern void powertest(void);
+#endif 
+
 void app_main()
 {
+#if defined(POWERTEST)
+	powertest();
+#endif 
+
     initialize_nvs();
 
 #if CONFIG_STORE_HISTORY
