@@ -17,6 +17,8 @@
 #endif //defined(HW_OMAR) || defined(HW_ESP32_PICOKIT)
 
 
+static void register_version_info();
+
 #if defined(HW_OMAR)
 static void register_toggle_white_led0();
 static void register_toggle_white_led1();
@@ -41,6 +43,8 @@ static void register_7953();
 
 void register_omar()
 {
+
+	register_version_info();
 
 #if defined(HW_ESP32_PICOKIT)
     register_toggle_blue();
@@ -304,3 +308,22 @@ static void register_7953(void)
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
+
+static int omar_version(int argc, char** argv)
+{
+	printf("Verion %s on branch \"%s\", built on %s\n", VERSION, BRANCH, TIMESTAMP);
+	return 0;
+}
+
+static void register_version_info()
+{
+    const esp_console_cmd_t cmd = {
+        .command = "version",
+        .help = "Version and build info of this Omar FW",
+        .hint = NULL,
+        .func = &omar_version,
+    };
+
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
