@@ -216,28 +216,6 @@ static void register_als()
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
-static int print_temp(int argc, char** argv)
-{
-    float temp; 
-
-    s5852a_get(&temp);
-
-    printf("Current temperature is %02.2f\n", temp);
-    return 0;
-}
-
-static void register_temperature()
-{
-    const esp_console_cmd_t cmd = {
-        .command = "temp",
-        .help = "Print out the current temperature reading from the S-5852A temp sensor",
-        .hint = NULL,
-        .func = &print_temp,
-    };
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
-}
-
-
 #endif  // HW_OMAR
 
 #if defined(HW_ESP32_PICOKIT)
