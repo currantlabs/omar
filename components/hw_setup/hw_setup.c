@@ -132,34 +132,46 @@ static void gpio_setup(void)
 {
     /* Configure outputs */
 
+    configure_gpio_output(OMAR_COIL_1_SET_GPIO);
+    configure_gpio_output(OMAR_COIL_1_RESET_GPIO);
+    configure_gpio_output(OMAR_COIL_2_SET_GPIO);
+    configure_gpio_output(OMAR_COIL_2_RESET_GPIO);
+
+
     configure_gpio_output(OMAR_WHITE_LED0);
     configure_gpio_output(OMAR_WHITE_LED1);
 
     configure_gpio_output(ADI_RESET);
     gpio_set_level(ADI_RESET, true);    //Don't assert the ADI_RESET just yet:
 
+
+
 }
 
 
+static void update_relay_coil(gpio_num_t coil)
+{
+
+    // Energize the coil for 10 milliseconds - that's all it takes:
+    gpio_set_level(coil, true);
+    vTaskDelay(10/portTICK_PERIOD_MS);
+    gpio_set_level(coil, false);
+
+}
+
 static void button_toggle_state(void)
 {
-    static bool on = false;
+    int on = toggle_white_led0(0, NULL);
 
-    on = !on;
-
-    // For now, for the hell of it: turn all leds ON, or OFF:
-    toggle_white_led0(0, NULL);
+    update_relay_coil(on ? OMAR_COIL_1_SET_GPIO : OMAR_COIL_1_RESET_GPIO);
 
 }
 
 static void button_toggle_state1(void)
 {
-    static bool on = false;
+    int on = toggle_white_led1(0, NULL);
 
-    on = !on;
-
-    // For now, for the hell of it: turn all leds ON, or OFF:
-    toggle_white_led1(0, NULL);
+    update_relay_coil(on ? OMAR_COIL_2_SET_GPIO : OMAR_COIL_2_RESET_GPIO);
 
 }
 
@@ -303,7 +315,7 @@ int toggle_white_led0(int argc, char** argv)
 
     gpio_set_level(OMAR_WHITE_LED0, on);
 
-    return 0;
+    return (on ? 1 : 0);
 }
 
 int toggle_white_led1(int argc, char** argv)
@@ -314,7 +326,7 @@ int toggle_white_led1(int argc, char** argv)
 
     gpio_set_level(OMAR_WHITE_LED1, on);
 
-    return 0;
+    return (on ? 1 : 0);
 }
 
 static void adc_setup(void)

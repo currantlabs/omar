@@ -63,12 +63,6 @@ typedef enum {
 
 #ifdef    HW_ESP32_PICOKIT
 
-// Simulating the Omar i2c setup on the PicoKit devboard
-#define I2C_SDA                         (0) 
-#define I2C_SCL                         (4) 
-#define OMAR_ESP32_I2C_CLOCKFREQHZ      (400000)
-#define OMAR_I2C_MASTER_PORT            (I2C_NUM_1)
-
 #define BLUE_LED                        (21)
 #define GREEN_LED                       (22)
 #define RED_LED                         (9)
@@ -98,6 +92,27 @@ typedef enum {
 
 #endif // HW_ESP32_PICOKIT
 
+#if defined(HW_OMAR) || defined(HW_ESP32_PICOKIT)
+// Note: sometimes it's useful to be able to emulate
+// omar features on the ESP32-PICO-KIT devboard so that
+// I can examine signals with the logic analyzer. So
+// I set up this "common" #defines section..
+
+// Omar I2C:
+#define I2C_SDA                         (0) 
+#define I2C_SCL                         (4) 
+#define OMAR_ESP32_I2C_CLOCKFREQHZ      (400000)
+#define OMAR_I2C_MASTER_PORT            (I2C_NUM_1)
+
+// Omar Coils:
+#define OMAR_COIL_1_SET_GPIO            (32)
+#define OMAR_COIL_1_RESET_GPIO          (22)
+#define OMAR_COIL_2_SET_GPIO            (33)
+#define OMAR_COIL_2_RESET_GPIO          (21)
+
+
+#endif //defined(HW_OMAR) || defined(HW_ESP32_PICOKIT)
+
 #ifdef    HW_OMAR
 
 // ADI7953 Energy Monitor chip signals
@@ -124,24 +139,11 @@ typedef enum {
 #define PLUG_DETECT1                    (34)
 #define PLUG_DETECT2                    (35)
 
-// Omar Coils:
-#define OMAR_COIL_1_SET_GPIO            (32)
-#define OMAR_COIL_1_RESET_GPIO          (22)
-#define OMAR_COIL_2_SET_GPIO            (33)
-#define OMAR_COIL_2_RESET_GPIO          (21)
-
 // Omar ADC inputs; both the ambient light sensor, and hw detect, are on ADC1:
 #define VOUT_LGHT_SNSR                  (37)
 #define VOUT_LGHT_SNSR__ADC_CHANNEL     (ADC_CHANNEL_1) 
 #define HW_DET                          (38)
 #define HW_DET__ADC_CHANNEL             (ADC_CHANNEL_2)
-
-
-// Omar I2C:
-#define I2C_SDA                         (0) 
-#define I2C_SCL                         (4) 
-#define OMAR_ESP32_I2C_CLOCKFREQHZ      (400000)
-#define OMAR_I2C_MASTER_PORT            (I2C_NUM_1)
 
 
 #endif // HW_OMAR
