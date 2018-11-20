@@ -14,7 +14,9 @@ static void gpio_setup(void);
 static HwVersionT m_hw_version = HW_VERSION_UNKNOWN;
 static int m_hw_version_raw_adc = 0;
 static void button_setup(void);
+#if !defined(POWERTEST)
 static void plug_detect_setup(void);
+#endif //!defined(POWERTEST)
 static void adc_setup(void);
 #endif  // HW_OMAR
 
@@ -217,9 +219,13 @@ static void button_setup(void)
         iot_button_set_evt_cb(btn_handle1, BUTTON_CB_RELEASE, push_btn_cb1, "RELEASE");
     }
 
+#if !defined(POWERTEST)
     plug_detect_setup();
+#endif //!defined(POWERTEST)
 
 }
+
+#if !defined(POWERTEST)
 
 static void handle_plug_unplug_event(uint32_t plug, bool on)
 {
@@ -306,6 +312,9 @@ static void plug_detect_setup(void)
     }
 
 }
+
+#endif //!defined(POWERTEST)
+
 
 int toggle_white_led0(int argc, char** argv)
 {
