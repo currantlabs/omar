@@ -19,14 +19,55 @@
 #include "tcpip_adapter.h"
 #include "esp_event_loop.h"
 
+typedef struct {
+    struct arg_str *ssid;
+    struct arg_str *password;
+    struct arg_end *end;
+} wifi_args_t;
+
+typedef struct {
+    struct arg_str *ssid;
+    struct arg_end *end;
+} wifi_scan_arg_t;
+
+static wifi_scan_arg_t scan_args;
+
+
 static EventGroupHandle_t wifi_event_group;
 const int CONNECTED_BIT = BIT0;
+const int DISCONNECTED_BIT = BIT1;
+
+static void scan_done_handler(void)
+{
+    uint16_t sta_number = 0;
+    uint8_t i;
+    wifi_ap_record_t *ap_list_buffer;
+
+    esp_wifi_scan_get_ap_num(&sta_number);
+    ap_list_buffer = malloc(sta_number * sizeof(wifi_ap_record_t));
+    if (ap_list_buffer == NULL) {
+        ESP_LOGE(__func__, "Failed to malloc buffer to print scan results");
+        return;
+    }
+
+    if (esp_wifi_scan_get_ap_records(&sta_number,(wifi_ap_record_t *)ap_list_buffer) == ESP_OK) {
+        for(i=0; i<sta_number; i++) {
+            ESP_LOGI(__func__, "[%s][rssi=%d]", ap_list_buffer[i].ssid, ap_list_buffer[i].rssi);
+        }
+    }
+    free(ap_list_buffer);
+}
 
 static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
     switch(event->event_id) {
     case SYSTEM_EVENT_STA_GOT_IP:
+        xEventGroupClearBits(wifi_event_group, DISCONNECTED_BIT);
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
+        break;
+    case SYSTEM_EVENT_SCAN_DONE:
+        scan_done_handler();
+        ESP_LOGI(__func__, "sta scan done");
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
         esp_wifi_connect();
@@ -38,7 +79,7 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
     return ESP_OK;
 }
 
-static void initialise_wifi(void)
+void initialise_wifi(void)
 {
     esp_log_level_set("wifi", ESP_LOG_WARN);
     static bool initialized = false;
@@ -58,7 +99,6 @@ static void initialise_wifi(void)
 
 static bool wifi_join(const char* ssid, const char* pass, int timeout_ms)
 {
-    initialise_wifi();
     wifi_config_t wifi_config = { 0 };
     strncpy((char*) wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
     if (pass) {
@@ -103,6 +143,35 @@ static int connect(int argc, char** argv)
     return 0;
 }
 
+static bool wifi_cmd_sta_scan(const char* ssid)
+{
+    wifi_scan_config_t scan_config = { 0 };
+    scan_config.ssid = (uint8_t *) ssid;
+
+    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
+    ESP_ERROR_CHECK( esp_wifi_scan_start(&scan_config, false) );
+
+    return true;
+}
+
+static int wifi_cmd_scan(int argc, char** argv)
+{
+    int nerrors = arg_parse(argc, argv, (void**) &scan_args);
+
+    if (nerrors != 0) {
+        arg_print_errors(stderr, scan_args.end, argv[0]);
+        return 1;
+    }
+
+    ESP_LOGI(__func__, "sta start to scan");
+    if ( scan_args.ssid->count == 1 ) {
+        wifi_cmd_sta_scan(scan_args.ssid->sval[0]);
+    } else {
+        wifi_cmd_sta_scan(NULL);
+    }
+    return 0;
+}
+
 void register_wifi()
 {
     join_args.timeout = arg_int0(NULL, "timeout", "<t>", "Connection timeout, ms");
@@ -120,4 +189,20 @@ void register_wifi()
     };
 
     ESP_ERROR_CHECK( esp_console_cmd_register(&join_cmd) );
+
+    scan_args.ssid = arg_str0(NULL, NULL, "<ssid>", "SSID of AP want to be scanned");
+    scan_args.end = arg_end(1);
+
+    const esp_console_cmd_t scan_cmd = {
+        .command = "scan",
+        .help = "WiFi is station mode, start scan ap",
+        .hint = NULL,
+        .func = &wifi_cmd_scan,
+        .argtable = &scan_args
+    };
+
+    ESP_ERROR_CHECK( esp_console_cmd_register(&scan_cmd) );
+
+
+
 }

@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "esp_wifi.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_console.h"
@@ -127,6 +128,7 @@ void app_main()
 
     omar_setup();
 
+    initialise_wifi();
     initialize_console();
 
     /* Register commands */

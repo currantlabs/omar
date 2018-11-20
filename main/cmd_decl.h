@@ -16,3 +16,5 @@ void register_wifi();
 
 // Register omar-specific functions
 void register_omar();
+
+void initialise_wifi(void);
