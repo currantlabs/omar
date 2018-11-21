@@ -19,6 +19,7 @@
 #include "freertos/timers.h"
 
 // Omar headers:
+#include "powertest.h"
 #include "hw_setup.h"
 
 static EventGroupHandle_t wifi_event_group;
@@ -93,6 +94,22 @@ static void initialise_wifi(void)
     initialized = true;
 }
 
+static bool wifi_join(const char* ssid, const char* pass, int timeout_ms)
+{
+    wifi_config_t wifi_config = { 0 };
+    strncpy((char*) wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
+    if (pass) {
+        strncpy((char*) wifi_config.sta.password, pass, sizeof(wifi_config.sta.password));
+    }
+
+    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
+    ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
+    ESP_ERROR_CHECK( esp_wifi_connect() );
+
+    int bits = xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT,
+            1, 1, timeout_ms / portTICK_PERIOD_MS);
+    return (bits & CONNECTED_BIT) != 0;
+}
 
 static void initialize_nvs()
 {
@@ -122,7 +139,8 @@ void powertest(void)
     initialise_wifi();
 
 
-    
+    // Attempt to connect to the AP:
+    wifi_join(POWERTEST_SSID, POWERTEST_PASSWORD, 0);
 
     while (1){
         printf("powertesting...\n");
