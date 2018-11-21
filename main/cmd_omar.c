@@ -311,7 +311,7 @@ static void register_7953(void)
 
 static int omar_version(int argc, char** argv)
 {
-	printf("Verion %s on branch \"%s\", built on %s\n", VERSION, BRANCH, TIMESTAMP);
+	printf("Verion %s on branch \"%s\", built on %s\n", OMAR_VERSION, OMAR_BRANCH, OMAR_TIMESTAMP);
 	return 0;
 }
 
