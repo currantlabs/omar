@@ -374,16 +374,15 @@ retry_dns:
             printf("%s(): Send succeeded [%s]\n", __func__, MESSAGE);
 
             // Read back the response:
-            do {
-                bzero(recv_buf, sizeof(recv_buf));
-                r = read(s, recv_buf, sizeof(recv_buf)-1);
-                for(int i = 0; i < r; i++) {
-                    putchar(recv_buf[i]);
-                }
-            } while(r > 0);
+            bzero(recv_buf, sizeof(recv_buf));
+            r = read(s, recv_buf, sizeof(recv_buf)-1);
+            printf("%s(): read loop got back %d bytes\n", __func__, r);
+            for(int i = 0; i < r; i++) {
+                putchar(recv_buf[i]);
+            }
             printf("%s(): Done reading from socket. Last read return=%d errno=%d\r\n", __func__, r, errno);
 
-            vTaskDelay(5000 / portTICK_PERIOD_MS);
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
 
         }
     }
