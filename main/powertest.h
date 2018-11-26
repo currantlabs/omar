@@ -8,6 +8,11 @@
 #define POWERTEST_SSID      ("Stringer 2.4")
 #define POWERTEST_PASSWORD  ("stringertest")
 
+#ifdef NOWAY
+#define POWERTEST_SSID      ("Currant 5G")
+#define POWERTEST_PASSWORD  ("sup3rp0w3rs!")
+#endif // NOWAY
+
 #define ECHOSERVER_NAME     ("jenkins.currant.com")
 #define ECHOSERVER_PORT     (7)
 
