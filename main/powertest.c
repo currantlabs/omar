@@ -56,6 +56,7 @@ static void led_blink_cb(xTimerHandle xTimer)
 }
 
 
+#if defined(BLINKING_LEDS_SHOW_CONNECTION_STATE)
 static void blink_leds(bool yes)
 {
     if (yes) {
@@ -64,6 +65,7 @@ static void blink_leds(bool yes)
         xTimerStop(led_blink_timer, 0);
     }
 }
+#endif // defined(BLINKING_LEDS_SHOW_CONNECTION_STATE)
 
 static void wifi_event(int event)
 {
@@ -261,10 +263,13 @@ void powertest(void)
     initialize_nvs();
     omar_setup();
 
+#if defined(BLINKING_LEDS_SHOW_CONNECTION_STATE)
     // Start blinking the leds to indicate
     // that you're not connected - then, start
     // up the wifi:
     blink_leds(true);
+#endif // defined(BLINKING_LEDS_SHOW_CONNECTION_STATE)
+
     initialise_wifi();
 
     // Attempt to connect to the AP:
@@ -357,8 +362,10 @@ retry_dns:
         }
         printf("%s(): connected to server...\n", __func__);
 
+#if defined(BLINKING_LEDS_SHOW_CONNECTION_STATE)
         // Stop blinking the LEDs once you're connected to the echo server:
         blink_leds(false);
+#endif // defined(BLINKING_LEDS_SHOW_CONNECTION_STATE)
 
 
         // Ping the echo server forever...
@@ -377,6 +384,14 @@ retry_dns:
             // Read back the response:
             bzero(recv_buf, sizeof(recv_buf));
             r = read(s, recv_buf, sizeof(recv_buf)-1);
+
+            if (r != strlen(MESSAGE)) {
+                printf("%s(): Sent %d bytes but the echo response contained %d bytes.\n", 
+                       __func__, 
+                       strlen(MESSAGE), 
+                       r);
+            }
+
             /* printf("%s(): read loop got back %d bytes\n", __func__, r); */
             /* for(int i = 0; i < r; i++) { */
             /*     putchar(recv_buf[i]); */
