@@ -8,5 +8,6 @@
 #define POWERTEST_SSID		("Stringer 2.4")
 #define POWERTEST_PASSWORD	("stringertest")
 
-
+void tcpip_echo_task_start_up(void);
+void tcpip_echo_task_shut_down(void);
 

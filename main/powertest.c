@@ -22,6 +22,10 @@
 #include "powertest.h"
 #include "hw_setup.h"
 
+static void tcpip_echo_task(void *arg);
+static xTaskHandle tcpip_echo_task_handle = NULL;
+
+
 static EventGroupHandle_t wifi_event_group;
 static const int CONNECTED_BIT = BIT0;
 static const int DISCONNECTED_BIT = BIT1;
@@ -61,11 +65,15 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
 
         // Stop blinking the LEDs once you're connected to the AP:
         blink_leds(false);
+        tcpip_echo_task_start_up();
 
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
         esp_wifi_connect();
         xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
+
+        // Stop talking to the server:
+        tcpip_echo_task_shut_down();
 
         // If you've been disconnected, start blinking LEDs again:
         blink_leds(true);
@@ -143,10 +151,39 @@ void powertest(void)
     wifi_join(POWERTEST_SSID, POWERTEST_PASSWORD, 0);
 
     while (1){
-        printf("powertesting...\n");
-        vTaskDelay(1000/portTICK_PERIOD_MS);
+        printf("\n\t\t\t ==> powertest up and running!\n");
+        vTaskDelay(10000/portTICK_PERIOD_MS);
     }
 
+}
+
+static void tcpip_echo_task(void *arg)
+{
+    for (;;) {
+        printf(".");
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+    }
+}
+
+
+void tcpip_echo_task_start_up(void)
+{
+    if (tcpip_echo_task_handle == NULL) {
+        xTaskCreate(tcpip_echo_task, "AppT", 2048, NULL, 10, &tcpip_echo_task_handle);
+    } else {
+        printf("\n\n\n\t%s(): Error! Attempting to create a task that is already running!\n\n\n",
+               __func__);
+    }
+
+    return;
+}
+
+void tcpip_echo_task_shut_down(void)
+{
+    if (tcpip_echo_task_handle) {
+        vTaskDelete(tcpip_echo_task_handle);
+        tcpip_echo_task_handle = NULL;
+    }
 }
 
 #endif //defined(POWERTEST)
