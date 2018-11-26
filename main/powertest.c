@@ -27,6 +27,9 @@
 #include "powertest.h"
 #include "hw_setup.h"
 
+static bool echoserver_ipaddr_resolved = false;
+static ip_addr_t echoserver_ipaddr;
+
 static void tcpip_echo_task(void *arg);
 static xTaskHandle tcpip_echo_task_handle = NULL;
 
@@ -162,13 +165,58 @@ void powertest(void)
 
 }
 
+static void dns_found_cb(const char *name, const ip_addr_t *ipaddr, void *callback_arg)
+{
+    /* ip_addr_t server_ipaddr = *ipaddr; */
+    /* echoserver_ipaddr_resolved = true; */
+
+    /* printf("%s(): DNS found the ip address - %i.%i.%i.%i\n",  */
+    /*     __func__, */
+    /*     ip4_addr1(&server_ipaddr.u_addr.ip4), */
+    /*     ip4_addr2(&server_ipaddr.u_addr.ip4), */
+    /*     ip4_addr3(&server_ipaddr.u_addr.ip4), */
+    /*     ip4_addr4(&server_ipaddr.u_addr.ip4)); */
+
+    printf("DNS!!\n");
+    echoserver_ipaddr_resolved = true;
+
+}
+
 #define MESSAGE     ("hellohello")
+
 
 static void tcpip_echo_task(void *arg)
 {
+    char ip_addr[32] = {0};
+    
+    // First, get the IP address for the echo server URL:
+    dns_gethostbyname(ECHOSERVER_NAME, &echoserver_ipaddr, dns_found_cb, NULL );
+
+    while (!echoserver_ipaddr_resolved) {
+        printf("Waiting on DNS...\n");
+        vTaskDelay(3000 / portTICK_PERIOD_MS);
+    }
+
+    printf("Wow! We got the DNS server to tell us the ip address?\n");
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
+
+
+    sprintf(ip_addr, "%i.%i.%i.%i", 
+            ip4_addr1(&echoserver_ipaddr.u_addr.ip4),
+            ip4_addr2(&echoserver_ipaddr.u_addr.ip4),
+            ip4_addr3(&echoserver_ipaddr.u_addr.ip4),
+            ip4_addr4(&echoserver_ipaddr.u_addr.ip4));
+
+    printf("%s(): Got the echo server's IP address - [%s]\n", __func__, ip_addr);
+
+    while (1) {
+        printf("%s(): stalling...\n", __func__);
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
+    }
+
     while (1) {
         struct sockaddr_in tcpServerAddr;
-        tcpServerAddr.sin_addr.s_addr = inet_addr(ECHOSERVER_NAME);
+        tcpServerAddr.sin_addr.s_addr = inet_addr(ip_addr);
         tcpServerAddr.sin_family = AF_INET;
         tcpServerAddr.sin_port = htons( 3010 );
         int s, r;
