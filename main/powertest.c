@@ -271,7 +271,7 @@ void powertest(void)
     wifi_join(POWERTEST_SSID, POWERTEST_PASSWORD, 0);
 
     while (1){
-        printf("\n\t\t\t ==> powertest up and running!\n");
+        /* printf("\n\t\t\t ==> powertest up and running!\n"); */
         vTaskDelay(10000/portTICK_PERIOD_MS);
     }
 
@@ -334,7 +334,8 @@ retry_dns:
         tcpServerAddr.sin_addr.s_addr = inet_addr(inet_ntoa(echoserver_ipaddr));
         tcpServerAddr.sin_family = AF_INET;
         tcpServerAddr.sin_port = htons(7);
-        int s, r;
+        int s;
+        int r;
         char recv_buf[64];
 
         // Hang out till you allocate a socket..
@@ -371,18 +372,18 @@ retry_dns:
                 vTaskDelay(4000 / portTICK_PERIOD_MS);
                 break;
             }
-            printf("%s(): Send succeeded [%s]\n", __func__, MESSAGE);
+            /* printf("%s(): Send succeeded [%s]\n", __func__, MESSAGE); */
 
             // Read back the response:
             bzero(recv_buf, sizeof(recv_buf));
             r = read(s, recv_buf, sizeof(recv_buf)-1);
-            printf("%s(): read loop got back %d bytes\n", __func__, r);
-            for(int i = 0; i < r; i++) {
-                putchar(recv_buf[i]);
-            }
-            printf("%s(): Done reading from socket. Last read return=%d errno=%d\r\n", __func__, r, errno);
+            /* printf("%s(): read loop got back %d bytes\n", __func__, r); */
+            /* for(int i = 0; i < r; i++) { */
+            /*     putchar(recv_buf[i]); */
+            /* } */
+            /* printf("%s(): Done reading from socket. Last read return=%d errno=%d\r\n", __func__, r, errno); */
 
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            vTaskDelay(10 / portTICK_PERIOD_MS);
 
         }
     }
