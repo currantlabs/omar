@@ -17,6 +17,11 @@
 #include "tcpip_adapter.h"
 #include "esp_event_loop.h"
 #include "freertos/timers.h"
+#include "lwip/err.h"
+#include "lwip/sockets.h"
+#include "lwip/sys.h"
+#include "lwip/netdb.h"
+#include "lwip/dns.h"
 
 // Omar headers:
 #include "powertest.h"
@@ -157,11 +162,63 @@ void powertest(void)
 
 }
 
+#define MESSAGE     ("hellohello")
+
 static void tcpip_echo_task(void *arg)
 {
-    for (;;) {
-        printf(".");
-        vTaskDelay(1000/portTICK_PERIOD_MS);
+    while (1) {
+        struct sockaddr_in tcpServerAddr;
+        tcpServerAddr.sin_addr.s_addr = inet_addr(ECHOSERVER_NAME);
+        tcpServerAddr.sin_family = AF_INET;
+        tcpServerAddr.sin_port = htons( 3010 );
+        int s, r;
+        char recv_buf[64];
+
+        // Hang out till you allocate a socket..
+        while((s=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+            printf("%s(): Failed to allocate socket.\n", __func__);
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            continue;
+        }
+        printf("%s(): allocated socket...\n", __func__);
+
+        // Hang out till you successfully connect:
+        while (connect(s, 
+                       (struct sockaddr *)&tcpServerAddr, 
+                       sizeof(tcpServerAddr)) != 0) {
+            printf("%s(): socket connect failed errno=%d \n", __func__, errno);
+            close(s);
+            vTaskDelay(4000 / portTICK_PERIOD_MS);
+            continue;
+        }
+        printf("%s(): connected to server...\n", __func__);
+
+        // Ping the echo server forever...
+        while (1) {
+
+            // Send a bit of data to the echo server:
+            if( write(s , MESSAGE , strlen(MESSAGE)) < 0)
+            {
+                printf("%s(): Send failed... \n", __func__);
+                close(s);
+                vTaskDelay(4000 / portTICK_PERIOD_MS);
+                break;
+            }
+            printf("%s(): Send succeeded [%s]\n", __func__, MESSAGE);
+
+            // Read back the response:
+            do {
+                bzero(recv_buf, sizeof(recv_buf));
+                r = read(s, recv_buf, sizeof(recv_buf)-1);
+                for(int i = 0; i < r; i++) {
+                    putchar(recv_buf[i]);
+                }
+            } while(r > 0);
+            printf("%s(): Done reading from socket. Last read return=%d errno=%d\r\n", __func__, r, errno);
+
+            vTaskDelay(5000 / portTICK_PERIOD_MS);
+
+        }
     }
 }
 
