@@ -180,6 +180,71 @@ static void dns_found_cb(const char *name, const ip_addr_t *ipaddr, void *callba
     printf("DNS!!\n");
     echoserver_ipaddr_resolved = true;
 
+    /* ip_addr_t mycopy = *ipaddr; */
+    /* u32_t theipaddr = mycopy.u_addr.ip4.addr; */
+
+
+    /* Activating the commented line gives us this crasher:
+     *
+     * Verion eefdb28f2db2940c94af721c8eb4931120b18bbb on branch "powertest", built on 2018-11-25 at 18:00:15
+     * powertest started:
+     * I (133) gpio: GPIO[32]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 
+     * I (133) gpio: GPIO[22]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 
+     * I (133) gpio: GPIO[33]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 
+     * I (143) gpio: GPIO[21]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 
+     * I (153) gpio: GPIO[26]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 
+     * I (163) gpio: GPIO[27]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 
+     * I (173) gpio: GPIO[10]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 
+     * s5852 successfully initialized
+     * I (183) gpio: GPIO[36]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:3 
+     * I (193) gpio: GPIO[39]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:3 
+     * I (213) wifi: wifi driver task: 3ffc2600, prio:23, stack:3584, core=0
+     * I (213) wifi: wifi firmware version: e27cdcf
+     * I (213) wifi: config NVS flash: enabled
+     * I (223) wifi: config nano formating: disabled
+     * I (223) system_api: Base MAC address is not set, read default base MAC address from BLK0 of EFUSE
+     * I (233) system_api: Base MAC address is not set, read default base MAC address from BLK0 of EFUSE
+     * I (263) wifi: Init dynamic tx buffer num: 32
+     * I (263) wifi: Init data frame dynamic rx buffer num: 32
+     * I (263) wifi: Init management frame dynamic rx buffer num: 32
+     * I (273) wifi: Init static rx buffer size: 1600
+     * I (273) wifi: Init static rx buffer num: 10
+     * I (273) wifi: Init dynamic rx buffer num: 32
+     * I (343) phy: phy_version: 4000, b6198fa, Sep  3 2018, 15:11:06, 0, 0
+     * I (343) wifi: mode : null
+     * I (343) wifi: mode : sta (d8:a0:1d:63:3c:24)
+     * 
+     *                          ==> powertest up and running!
+     * I (463) wifi: n:1 0, o:1 0, ap:255 255, sta:1 0, prof:1
+     * I (1453) wifi: state: init -> auth (b0)
+     * I (1453) wifi: state: auth -> assoc (0)
+     * I (1453) wifi: state: assoc -> run (10)
+     * I (1493) wifi: connected with Stringer 2.4, channel 1
+     * I (1503) wifi: pm start, type: 1
+     * 
+     * I (2213) event: sta ip: 192.168.1.44, mask: 255.255.255.0, gw: 192.168.1.1
+     * Waiting on DNS...
+     * DNS!!
+     * Guru Meditation Error: Core  1 panic'ed (LoadProhibited). Exception was unhandled.
+     * Core 1 register dump:
+     * PC      : 0x400d3649  PS      : 0x00060630  A0      : 0x8012c48d  A1      : 0x3ffbf950
+     * A2      : 0x3ffb6bd4  A3      : 0x00000000  A4      : 0x00000000  A5      : 0x400d3638
+     * A6      : 0x00010001  A7      : 0x00010001  A8      : 0x3ffb4250  A9      : 0x00000001
+     * A10     : 0x0000000a  A11     : 0x3ffc79f4  A12     : 0x3ffbf940  A13     : 0x00000001
+     * A14     : 0x00060e20  A15     : 0x3ffbfa70  SAR     : 0x00000019  EXCCAUSE: 0x0000001c
+     * EXCVADDR: 0x00000000  LBEG    : 0x400014fd  LEND    : 0x4000150d  LCOUNT  : 0xfffffffe
+     * 
+     * Backtrace: 0x400d3649:0x3ffbf950 0x4012c48a:0x3ffbf970 0x4012d2a5:0x3ffbf990 0x40133552:0x3ffbf9e0 0x40136a05:0x3ffbfa20 0x401
+     * 3b4d5:0x3ffbfa40 0x4012c0cb:0x3ffbfa60 0x4008cc61:0x3ffbfa90
+     *
+     *
+     */
+    
+    /* uint8_t *junk = (uint8_t *) ipaddr; */
+    uint8_t junk[] = {0xde, 0xad, 0xbe, 0xef};
+
+    printf("%s(): DNS found the ip address - has type 0x%02x\n", __func__, junk[0]);
+
 }
 
 #define MESSAGE     ("hellohello")
@@ -201,13 +266,13 @@ static void tcpip_echo_task(void *arg)
     vTaskDelay(3000 / portTICK_PERIOD_MS);
 
 
-    sprintf(ip_addr, "%i.%i.%i.%i", 
-            ip4_addr1(&echoserver_ipaddr.u_addr.ip4),
-            ip4_addr2(&echoserver_ipaddr.u_addr.ip4),
-            ip4_addr3(&echoserver_ipaddr.u_addr.ip4),
-            ip4_addr4(&echoserver_ipaddr.u_addr.ip4));
+    /* sprintf(ip_addr, "%i.%i.%i.%i",  */
+    /*         ip4_addr1(&echoserver_ipaddr.u_addr.ip4), */
+    /*         ip4_addr2(&echoserver_ipaddr.u_addr.ip4), */
+    /*         ip4_addr3(&echoserver_ipaddr.u_addr.ip4), */
+    /*         ip4_addr4(&echoserver_ipaddr.u_addr.ip4)); */
 
-    printf("%s(): Got the echo server's IP address - [%s]\n", __func__, ip_addr);
+    /* printf("%s(): Got the echo server's IP address - [%s]\n", __func__, ip_addr); */
 
     while (1) {
         printf("%s(): stalling...\n", __func__);
