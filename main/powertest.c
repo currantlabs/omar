@@ -306,8 +306,6 @@ static void dns_found_cb(const char *name, const ip_addr_t *ipaddr, void *callba
 
 static void tcpip_echo_task(void *arg)
 {
-    char ip_addr[32] = {0};
-    
     // Display the name of your DNS server:
     ip_addr_t dns_server = dns_getserver(0);
 
@@ -337,7 +335,7 @@ retry_dns:
 
     while (1) {
         struct sockaddr_in tcpServerAddr;
-        tcpServerAddr.sin_addr.s_addr = inet_addr(ip_addr);
+        tcpServerAddr.sin_addr.s_addr = inet_addr(inet_ntoa(echoserver_ipaddr));
         tcpServerAddr.sin_family = AF_INET;
         tcpServerAddr.sin_port = htons( 3010 );
         int s, r;
