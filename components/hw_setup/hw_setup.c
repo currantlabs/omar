@@ -165,7 +165,7 @@ static void button_toggle_state(void)
 {
     int on = toggle_white_led0(0, NULL);
 
-    update_relay_coil(on ? OMAR_COIL_1_SET_GPIO : OMAR_COIL_1_RESET_GPIO);
+    update_relay_coil(on ? OMAR_COIL_2_SET_GPIO : OMAR_COIL_2_RESET_GPIO);
 
 }
 
@@ -173,7 +173,7 @@ static void button_toggle_state1(void)
 {
     int on = toggle_white_led1(0, NULL);
 
-    update_relay_coil(on ? OMAR_COIL_2_SET_GPIO : OMAR_COIL_2_RESET_GPIO);
+    update_relay_coil(on ? OMAR_COIL_1_SET_GPIO : OMAR_COIL_1_RESET_GPIO);
 
 }
 
