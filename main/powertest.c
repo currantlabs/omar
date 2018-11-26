@@ -188,8 +188,6 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
         xEventGroupClearBits(wifi_event_group, DISCONNECTED_BIT);
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
 
-        // Stop blinking the LEDs once you're connected to the AP:
-        blink_leds(false);
         tcpip_echo_task_start_up();
 
         break;
@@ -200,8 +198,6 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
         // Stop talking to the server:
         tcpip_echo_task_shut_down();
 
-        // If you've been disconnected, start blinking LEDs again:
-        blink_leds(true);
 
         break;
     default:
@@ -359,6 +355,10 @@ retry_dns:
             continue;
         }
         printf("%s(): connected to server...\n", __func__);
+
+        // Stop blinking the LEDs once you're connected to the echo server:
+        blink_leds(false);
+
 
         // Ping the echo server forever...
         while (1) {
