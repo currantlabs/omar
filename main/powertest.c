@@ -64,8 +64,124 @@ static void blink_leds(bool yes)
     }
 }
 
+static void wifi_event(int event)
+{
+    switch(event) {
+
+    case SYSTEM_EVENT_WIFI_READY:
+        printf("%s(): SYSTEM_EVENT_WIFI_READY\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_SCAN_DONE:
+        printf("%s(): SYSTEM_EVENT_SCAN_DONE\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_STA_START:
+        printf("%s(): SYSTEM_EVENT_STA_START\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_STA_STOP:
+        printf("%s(): SYSTEM_EVENT_STA_STOP\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_STA_CONNECTED:
+        printf("%s(): SYSTEM_EVENT_STA_CONNECTED\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_STA_DISCONNECTED:
+        printf("%s(): SYSTEM_EVENT_STA_DISCONNECTED\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_STA_AUTHMODE_CHANGE:
+        printf("%s(): SYSTEM_EVENT_STA_AUTHMODE_CHANGE\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_STA_GOT_IP:
+        printf("%s(): SYSTEM_EVENT_STA_GOT_IP\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_STA_LOST_IP:
+        printf("%s(): SYSTEM_EVENT_STA_LOST_IP\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_STA_WPS_ER_SUCCESS:
+        printf("%s(): SYSTEM_EVENT_STA_WPS_ER_SUCCESS\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_STA_WPS_ER_FAILED:
+        printf("%s(): SYSTEM_EVENT_STA_WPS_ER_FAILED\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_STA_WPS_ER_TIMEOUT:
+        printf("%s(): SYSTEM_EVENT_STA_WPS_ER_TIMEOUT\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_STA_WPS_ER_PIN:
+        printf("%s(): SYSTEM_EVENT_STA_WPS_ER_PIN\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_AP_START:
+        printf("%s(): SYSTEM_EVENT_AP_START\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_AP_STOP:
+        printf("%s(): SYSTEM_EVENT_AP_STOP\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_AP_STACONNECTED:
+        printf("%s(): SYSTEM_EVENT_AP_STACONNECTED\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_AP_STADISCONNECTED:
+        printf("%s(): SYSTEM_EVENT_AP_STADISCONNECTED\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_AP_STAIPASSIGNED:
+        printf("%s(): SYSTEM_EVENT_AP_STAIPASSIGNED\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_AP_PROBEREQRECVED:
+        printf("%s(): SYSTEM_EVENT_AP_PROBEREQRECVED\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_GOT_IP6:
+        printf("%s(): SYSTEM_EVENT_GOT_IP6\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_ETH_START:
+        printf("%s(): SYSTEM_EVENT_ETH_START\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_ETH_STOP:
+        printf("%s(): SYSTEM_EVENT_ETH_STOP\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_ETH_CONNECTED:
+        printf("%s(): SYSTEM_EVENT_ETH_CONNECTED\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_ETH_DISCONNECTED:
+        printf("%s(): SYSTEM_EVENT_ETH_DISCONNECTED\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_ETH_GOT_IP:
+        printf("%s(): SYSTEM_EVENT_ETH_GOT_IP\n", __func__);
+        break;
+        
+    case SYSTEM_EVENT_MAX:
+        printf("%s(): SYSTEM_EVENT_MAX\n", __func__);
+        break;
+        
+    default:
+        printf("%s(): Unknown Event ID 0x%x\n", __func__, event);
+    }
+}
+
 static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
+
+    wifi_event(event->event_id);
+
     switch(event->event_id) {
     case SYSTEM_EVENT_STA_GOT_IP:
         xEventGroupClearBits(wifi_event_group, DISCONNECTED_BIT);
@@ -154,7 +270,6 @@ void powertest(void)
     blink_leds(true);
     initialise_wifi();
 
-
     // Attempt to connect to the AP:
     wifi_join(POWERTEST_SSID, POWERTEST_PASSWORD, 0);
 
@@ -194,6 +309,11 @@ static void tcpip_echo_task(void *arg)
 {
     char ip_addr[32] = {0};
     
+    // Display the name of your DNS server:
+    ip_addr_t dns_server = dns_getserver(0);
+
+    printf("%s(): DNS Server IP address is [%s]\n", __func__, inet_ntoa(dns_server));
+
     // First, get the IP address for the echo server URL:
     dns_gethostbyname(ECHOSERVER_NAME, &echoserver_ipaddr, dns_found_cb, NULL );
 
