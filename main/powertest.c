@@ -337,7 +337,7 @@ retry_dns:
         struct sockaddr_in tcpServerAddr;
         tcpServerAddr.sin_addr.s_addr = inet_addr(inet_ntoa(echoserver_ipaddr));
         tcpServerAddr.sin_family = AF_INET;
-        tcpServerAddr.sin_port = htons( 3010 );
+        tcpServerAddr.sin_port = htons(7);
         int s, r;
         char recv_buf[64];
 
