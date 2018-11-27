@@ -256,7 +256,7 @@ void powertest(void)
 {
     printf("Verion %s on branch \"%s\", built on %s\n", OMAR_VERSION, OMAR_BRANCH, OMAR_TIMESTAMP);
 
-    printf("powertest started:\n");
+    printf("powertest started: connecting to AP [%s]\n", POWERTEST_SSID);
 
     led_blink_timer = xTimerCreate("led_blink_timer", LED_BLINK_TIMER_PERIOD, pdTRUE, NULL, led_blink_cb);
 
