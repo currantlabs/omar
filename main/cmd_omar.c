@@ -37,6 +37,7 @@ static void register_temperature();
 static void register_hw_detect();
 static void register_als();
 static void register_temperature();
+static void register_eeprom();
 #endif
 
 static void register_7953();
@@ -44,7 +45,7 @@ static void register_7953();
 void register_omar()
 {
 
-	register_version_info();
+    register_version_info();
 
 #if defined(HW_ESP32_PICOKIT)
     register_toggle_blue();
@@ -63,6 +64,7 @@ void register_omar()
     register_hw_detect();
     register_als();
     register_temperature();
+    register_eeprom();
 #endif
 
 }
@@ -157,6 +159,49 @@ static void register_temperature()
 
 
 #if defined(HW_OMAR)
+
+static struct {
+    /* struct arg_str *operation;   // read or write */
+    /* struct arg_int *address; // Ranges from 0x000 to 0x400 */
+    struct arg_int *value;      // (only for "write") Value to be written
+    struct arg_end *end;
+} eeprom_args;
+
+static int access_eeprom(int argc, char** argv)
+{
+    int nerrors = arg_parse(argc, argv, (void**) &eeprom_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, eeprom_args.end, argv[0]);
+        return 1;
+    }
+
+    /* printf("%s(): eeprom_args.operation = %p, eeprom_args.address = %p, eeprom_args.value = %p\n", */
+    printf("%s(): eeprom_args.value = %p, eeprom_args.value->ival[0] = 0x%x\n",
+           __func__,
+           /* eeprom_args.operation, */
+           /* eeprom_args.address, */
+           eeprom_args.value, eeprom_args.value->ival[0]);
+
+    return 0;
+}
+
+static void register_eeprom()
+{
+    /* eeprom_args.operation = arg_str1(NULL, NULL, "<r|w>", "Operation to perform, (r)ead or (w)rite"); */
+    /* eeprom_args.address = arg_int1(NULL, "address", "<addr>", "Address to access, 0x000 - 0x400"); */
+    eeprom_args.value = arg_int0(NULL, "value", "<val>", "Value to be written (defaults to 0xff)");
+    eeprom_args.value->ival[0] = 0xff;
+    eeprom_args.end = arg_end(4);
+
+    const esp_console_cmd_t eeprom_cmd = {
+        .command = "eeprom",
+        .help = "Access the s24c08 eeprom",
+        .hint = NULL,
+        .func = &access_eeprom,
+        .argtable = &eeprom_args
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&eeprom_cmd) );
+}
 
 static void register_toggle_white_led0()
 {
@@ -259,7 +304,6 @@ static void register_toggle_red()
 #endif //HW_ESP32_PICOKIT
 
 
-// Struct used by the LED toggle function
 static struct {
     struct arg_str *cmd;
     struct arg_end *end;
@@ -311,8 +355,8 @@ static void register_7953(void)
 
 static int omar_version(int argc, char** argv)
 {
-	printf("Verion %s on branch \"%s\", built on %s\n", VERSION, BRANCH, TIMESTAMP);
-	return 0;
+    printf("Verion %s on branch \"%s\", built on %s\n", VERSION, BRANCH, TIMESTAMP);
+    return 0;
 }
 
 static void register_version_info()
