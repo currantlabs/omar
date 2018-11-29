@@ -26,9 +26,28 @@
  * 
  */
 
-#define S24C08C_I2C_ADDRESS_BLOCK0      0x50
-#define S24C08C_I2C_ADDRESS_BLOCK1      0x51
-#define S24C08C_I2C_ADDRESS_BLOCK2      0x52
-#define S24C08C_I2C_ADDRESS_BLOCK3      0x53
+#define S24C08C_I2C_ADDRESS_BLOCK0      (0x50)
+#define S24C08C_I2C_ADDRESS_BLOCK1      (0x51)
+#define S24C08C_I2C_ADDRESS_BLOCK2      (0x52)
+#define S24C08C_I2C_ADDRESS_BLOCK3      (0x53)
+
+/*
+ * S24C08C_I2C_ADDRESS_BADADDR is used to signal
+ * an out-of-range address when attempting to map
+ * EEPROM location address to i2c device address.
+ */
+#define S24C08C_I2C_ADDRESS_BADADDR     (0xff)
 
 #define OMAR_EEPROM_SIZE                (0x400)
+
+#define OMAR_EEPROM_PAGE_SIZE           (0x100)
+
+#define OMAR_EEPROM_BLOCK0_MAXADDR      (0x0ff)
+#define OMAR_EEPROM_BLOCK1_MAXADDR      (0x1ff)
+#define OMAR_EEPROM_BLOCK2_MAXADDR      (0x2ff)
+#define OMAR_EEPROM_BLOCK3_MAXADDR      (0x3ff)
+
+// Functions:
+void s24c08_init(void);
+esp_err_t s24c08_random_read(uint16_t address, uint8_t *data);
+esp_err_t s24c08_read(uint16_t address, uint8_t *data);

@@ -4,6 +4,7 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <ctype.h>
 #include "argtable3/argtable3.h"
@@ -206,7 +207,7 @@ static int access_eeprom(int argc, char** argv)
     const int address_specified = eeprom_args.address->count;
     
     if (!address_specified) {
-        eeprom_args.address->ival[0] = default_address;
+        default_address++;
     } else {
         // Check to see if the address is out of bounds:
         int address = eeprom_args.address->ival[0];
@@ -225,11 +226,25 @@ static int access_eeprom(int argc, char** argv)
     printf("%s(): Operation = [%s], address = 0x%03x, and value = 0x%02x\n",
            __func__,
            eeprom_args.operation->sval[0],
-           eeprom_args.address->ival[0],
+           default_address,
            eeprom_args.value->ival[0]);
 
 
     restore_eeprom_command_option_defaults();
+
+    if (op == 'w') {
+        printf("%s(): sorry charlie, writes aren't quite supported yet :-)\n", __func__);
+        return 0;
+    }
+
+    uint8_t data;
+    esp_err_t ret = s24c08_random_read((uint16_t )default_address, &data);
+    if (ret != ESP_OK) {
+        printf("%s(): s24c08_random_read() call returned an error - 0x%x\n", __func__, ret);
+        return 1;
+    }
+
+    printf("%s(): read 0x%02x from eeprom location 0x%x\n", __func__, data, default_address);
 
     return 0;
 }
