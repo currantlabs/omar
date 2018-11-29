@@ -16,6 +16,9 @@
 #include "s5852a.h"
 #endif //defined(HW_OMAR) || defined(HW_ESP32_PICOKIT)
 
+#if defined(HW_OMAR)
+#include "s24c08.h"
+#endif //defined(HW_OMAR) 
 
 static void register_version_info();
 
@@ -161,37 +164,84 @@ static void register_temperature()
 #if defined(HW_OMAR)
 
 static struct {
-    /* struct arg_str *operation;   // read or write */
-    /* struct arg_int *address; // Ranges from 0x000 to 0x400 */
+    struct arg_str *operation;   // read or write
+    struct arg_int *address; // Ranges from 0x000 to 0x400
     struct arg_int *value;      // (only for "write") Value to be written
     struct arg_end *end;
 } eeprom_args;
 
+static void restore_eeprom_command_option_defaults(void)
+{
+    eeprom_args.operation->sval[0] = "r";
+    eeprom_args.address->ival[0] = 0;
+    eeprom_args.value->ival[0] = 0xff;
+}
+
 static int access_eeprom(int argc, char** argv)
 {
+    static int default_address = 0;
+
     int nerrors = arg_parse(argc, argv, (void**) &eeprom_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, eeprom_args.end, argv[0]);
+        restore_eeprom_command_option_defaults();
         return 1;
     }
 
-    /* printf("%s(): eeprom_args.operation = %p, eeprom_args.address = %p, eeprom_args.value = %p\n", */
-    printf("%s(): eeprom_args.value = %p, eeprom_args.value->ival[0] = 0x%x\n",
+    const char op = eeprom_args.operation->sval[0][0];
+
+    if (!(op == 'w' || op == 'r')) {
+        printf("eeprom: invalid operation \'%c\' (must be 'r' or 'w')\n", op);
+        restore_eeprom_command_option_defaults();
+        return 1;
+    }
+
+    const int value_specified = eeprom_args.value->count;
+    if (value_specified && op == 'r') {
+        printf("eeprom: don't specify a value when performing a read operation\n");
+        restore_eeprom_command_option_defaults();
+        return 1;
+    }
+
+    const int address_specified = eeprom_args.address->count;
+    
+    if (!address_specified) {
+        eeprom_args.address->ival[0] = default_address;
+    } else {
+        // Check to see if the address is out of bounds:
+        int address = eeprom_args.address->ival[0];
+
+        if (address < 0 || address >= OMAR_EEPROM_SIZE) {
+            printf("eeprom: address 0x%03x out of range (must be between 0x000 and 0x3ff)\n", address);
+            restore_eeprom_command_option_defaults();
+            return 1;
+        }
+
+        // Remember this address for next time
+        default_address = eeprom_args.address->ival[0];
+    }
+
+
+    printf("%s(): Operation = [%s], address = 0x%03x, and value = 0x%02x\n",
            __func__,
-           /* eeprom_args.operation, */
-           /* eeprom_args.address, */
-           eeprom_args.value, eeprom_args.value->ival[0]);
+           eeprom_args.operation->sval[0],
+           eeprom_args.address->ival[0],
+           eeprom_args.value->ival[0]);
+
+
+    restore_eeprom_command_option_defaults();
 
     return 0;
 }
 
 static void register_eeprom()
 {
-    /* eeprom_args.operation = arg_str1(NULL, NULL, "<r|w>", "Operation to perform, (r)ead or (w)rite"); */
-    /* eeprom_args.address = arg_int1(NULL, "address", "<addr>", "Address to access, 0x000 - 0x400"); */
+    eeprom_args.operation = arg_str0(NULL, NULL, "<r|w>", "Operation to perform, (r)ead or (w)rite (defaults to \"r\")");
+    eeprom_args.address = arg_int0(NULL, "address", "<addr>", "Address to access, 0x000 - 0x3ff (defaults to 0x000, or to the last specified address)");
     eeprom_args.value = arg_int0(NULL, "value", "<val>", "Value to be written (defaults to 0xff)");
-    eeprom_args.value->ival[0] = 0xff;
     eeprom_args.end = arg_end(4);
+
+    restore_eeprom_command_option_defaults();
 
     const esp_console_cmd_t eeprom_cmd = {
         .command = "eeprom",

@@ -19,10 +19,10 @@
  * The final pair of bits determines the memory block
  * being accessed:
  *
- * Block0:	1010000b (0x50)
- * Block1:	1010001b (0x51)
- * Block2:	1010010b (0x52)
- * Block3:	1010011b (0x53)
+ * Block0:  1010000b (0x50)
+ * Block1:  1010001b (0x51)
+ * Block2:  1010010b (0x52)
+ * Block3:  1010011b (0x53)
  * 
  */
 
@@ -30,3 +30,5 @@
 #define S24C08C_I2C_ADDRESS_BLOCK1      0x51
 #define S24C08C_I2C_ADDRESS_BLOCK2      0x52
 #define S24C08C_I2C_ADDRESS_BLOCK3      0x53
+
+#define OMAR_EEPROM_SIZE                (0x400)
