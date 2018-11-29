@@ -15,6 +15,6 @@
  */
 void s24c08_init(void)
 {
-
+    printf("%s(): initialized\n", __func__);
 }
 
