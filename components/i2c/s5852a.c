@@ -129,7 +129,7 @@ esp_err_t s5852a_get(float *temperature)
     esp_err_t ret = i2c_tx(S5852A_I2C_ADDRESS, &pointer, 1);
     if (ret != ESP_OK) {
         printf("error: can't set s5852 pointer!\n");
-        return -1;
+        return ESP_FAIL;
     }
 
     uint8_t raw[2];
