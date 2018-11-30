@@ -20,6 +20,8 @@ static void s24c08_reset(void);
 static void bit_bang_i2c_start(void);
 static void bit_bang_i2c_stop(void);
 static void bit_bang_i2c_clock(uint8_t cycles);
+static esp_err_t s24c08_read_nbytes(s24c08_eeprom_page_t page, uint8_t *data, uint16_t count);
+
 
 #define I2C_BIT_BANG_DELAY          (1/portTICK_PERIOD_MS)
 
@@ -169,8 +171,12 @@ esp_err_t s24c08_write(uint16_t address, uint8_t data)
  * address (0x000 - 0x3ff) in EEPROM memory.
  *
  */
-esp_err_t s24c08_read(uint16_t address, uint8_t *data)
+esp_err_t s24c08_read(uint16_t address, uint8_t *data, uint16_t count)
 {
+    if (count == 0) {
+        return ESP_OK;
+    }
+
     if (!m_initialized) {
         printf("%s(): the s24c08 hasn't been initialized\n", __func__);
         return ESP_FAIL;
@@ -185,6 +191,12 @@ esp_err_t s24c08_read(uint16_t address, uint8_t *data)
     // Calculate the offset within the page to the desired location:
     uint8_t in_page_addr = (uint8_t )(address % OMAR_EEPROM_PAGE_SIZE);
 
+    if (count + in_page_addr > OMAR_EEPROM_PAGE_SIZE) {
+        printf("%s(): cannot read across page boundaries just yet (offset in page = 0x%02x, count = 0x%02x\n",
+               __func__, in_page_addr, count);
+        return ESP_FAIL;
+    }
+
     /*
      * First, set up the address to be read from (using the "dummy write" 
      * technique describd in section "7.2 Random read"of the s24c08
@@ -196,13 +208,14 @@ esp_err_t s24c08_read(uint16_t address, uint8_t *data)
         return ESP_FAIL;
     }
 
-    // Then just read the byte from that location:
-    return s24c08_read_next(page, data);
+    return s24c08_read_nbytes(page, data, count);
     
+    
+
 }
 
 /*
- * s24c08_read_next() reads 1 byte from the "current address"
+ * s24c08_read_nbytes() reads n bytes from the "current address"
  * maintained internally by the s24c08 EEPROM chip.
  * 
  * This address may have just been setup by a call to
@@ -213,7 +226,7 @@ esp_err_t s24c08_read(uint16_t address, uint8_t *data)
  *
  * 
  */
-esp_err_t s24c08_read_next(s24c08_eeprom_page_t page, uint8_t *data)
+static esp_err_t s24c08_read_nbytes(s24c08_eeprom_page_t page, uint8_t *data, uint16_t count)
 {
     if (!m_initialized) {
         printf("%s(): the s24c08 hasn't been initialized\n", __func__);
@@ -228,7 +241,7 @@ esp_err_t s24c08_read_next(s24c08_eeprom_page_t page, uint8_t *data)
     // The s24c08 EEPROM chip knows the offset location
     // within the page specified by 'page' from
     // which to read the data:
-    esp_err_t ret = i2c_rx(page, data, 1);
+    esp_err_t ret = i2c_rx(page, data, count);
     if (ret != ESP_OK) {
         printf("%s(): failed to read the requested data from the s24c08 EEPROM\n", __func__);
         return ESP_FAIL;

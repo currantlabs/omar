@@ -165,8 +165,9 @@ static void register_temperature()
 #if defined(HW_OMAR)
 
 static struct {
-    struct arg_str *operation;   // read or write
-    struct arg_int *address; // Ranges from 0x000 to 0x400
+    struct arg_str *operation;  // read or write
+    struct arg_int *count;      // number of bytes to read 
+    struct arg_int *address;    // Ranges from 0x000 to 0x400
     struct arg_int *value;      // (only for "write") Value to be written
     struct arg_end *end;
 } eeprom_args;
@@ -174,6 +175,7 @@ static struct {
 static void restore_eeprom_command_option_defaults(void)
 {
     eeprom_args.operation->sval[0] = "r";
+    eeprom_args.count->ival[0] = 1;
     eeprom_args.address->ival[0] = 0;
     eeprom_args.value->ival[0] = 0xff;
 }
@@ -223,28 +225,58 @@ static int access_eeprom(int argc, char** argv)
     }
 
 
-    printf("%s(): Operation = [%s], address = 0x%03x, and value = 0x%02x\n",
+    printf("%s(): Operation = [%s], count = %d, address = 0x%03x, and value = 0x%02x\n",
            __func__,
            eeprom_args.operation->sval[0],
+           eeprom_args.count->ival[0],
            default_address,
            eeprom_args.value->ival[0]);
 
 
     uint8_t value = eeprom_args.value->ival[0];
 
+    int count = eeprom_args.count->ival[0];
+
     restore_eeprom_command_option_defaults();
 
+    if (op == 'r' 
+        && 
+        (count + (default_address % OMAR_EEPROM_PAGE_SIZE)) > OMAR_EEPROM_PAGE_SIZE) {
+
+        printf("%s(): can't read past the edge of a page of eeprom memory (base address = 0x%03x, count = 0x%02x)\n",
+               __func__, default_address, count);
+
+        return 1;
+
+    }
+
     if (op == 'r') {
-        uint8_t data;
-        esp_err_t ret = s24c08_read((uint16_t )default_address, &data);
+        uint8_t data[16] = {0};
+        uint8_t *buf = (count <= 16 ? data : calloc(count, 1));
+        int retval = 0; 
+
+        esp_err_t ret = s24c08_read((uint16_t )default_address, buf, count);
         if (ret != ESP_OK) {
             printf("%s(): s24c08_read() call returned an error - 0x%x\n", __func__, ret);
-            return 1;
+            retval = 1;
         }
 
-        printf("%s(): read 0x%02x from eeprom location 0x%x\n", __func__, data, default_address);
+        if (count == 1) {
+            printf("%s(): read 0x%02x from eeprom location 0x%x\n", __func__, buf[0], default_address);
+        } else {
+            printf("%s(): reading %d bytes starting from eeprom location 0x%x\n", __func__, count, default_address);
+            for (int i=0; i<count; i++) {
+                printf("0x%04x: 0x%02x\n", default_address + i, buf[i]);
+            }
+            
+        }
 
-        return 0;
+        // Clean up if you have to
+        if (buf != data) {
+            free(buf);
+        }
+
+        return retval;
 
     }
 
@@ -269,8 +301,9 @@ static int access_eeprom(int argc, char** argv)
 static void register_eeprom()
 {
     eeprom_args.operation = arg_str0(NULL, NULL, "<r|w>", "Operation to perform, (r)ead or (w)rite (defaults to \"r\")");
-    eeprom_args.address = arg_int0(NULL, "address", "<addr>", "Address to access, 0x000 - 0x3ff (defaults to 0x000, or to the last specified address)");
-    eeprom_args.value = arg_int0(NULL, "value", "<val>", "Value to be written (defaults to 0xff)");
+    eeprom_args.count = arg_int0(NULL, "count", "<c>", "Number of bytes to read (cannot read past the end of a 256-byte page)");
+    eeprom_args.address = arg_int0(NULL, "address", "<a>", "Address to access, 0x000 - 0x3ff (for reads, defaults to 0x000, or to the last specified address)");
+    eeprom_args.value = arg_int0(NULL, "value", "<v>", "Value to be written (defaults to 0xff)");
     eeprom_args.end = arg_end(4);
 
     restore_eeprom_command_option_defaults();

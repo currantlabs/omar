@@ -45,7 +45,7 @@ typedef enum {
 
 // Functions:
 void s24c08_init(void);
-esp_err_t s24c08_read(uint16_t address, uint8_t *data);     // read a byte
-esp_err_t s24c08_write(uint16_t address, uint8_t data);     // write a byte
+esp_err_t s24c08_read(uint16_t address, uint8_t *data, uint16_t count);     // read some bytes
+esp_err_t s24c08_write(uint16_t address, uint8_t data);                     // write a byte
 
-esp_err_t s24c08_read_next(s24c08_eeprom_page_t page, uint8_t *data);
+
