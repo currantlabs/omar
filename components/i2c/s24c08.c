@@ -23,6 +23,7 @@ static esp_err_t s24c08_reset(void)
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, 0xff, ACK_CHECK_DIS);
+    i2c_master_start(cmd);
     i2c_master_stop(cmd);
     esp_err_t ret = i2c_master_cmd_begin(OMAR_I2C_MASTER_PORT, cmd, 1000 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
