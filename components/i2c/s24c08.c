@@ -6,18 +6,38 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "hw_setup.h"
+#include "driver/i2c.h"
 #include "i2c.h"
 #include "s24c08.h"
 #include "esp_err.h"
 
+#define ACK_CHECK_DIS                      0x0              /*!< I2C master will not check ack from slave */
+
 static bool m_initialized = true;
 static uint8_t map_eeprom_addr_to_device_addr(uint16_t addr);
+static esp_err_t s24c08_reset(void);
+
+static esp_err_t s24c08_reset(void)
+{
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, 0xff, ACK_CHECK_DIS);
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(OMAR_I2C_MASTER_PORT, cmd, 1000 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret;
+	
+}
+
 
 /*
  * See the reset procedure on pg 22 of the datasheet
+ * (section "[How to reset S-24C08C]")
  */
 void s24c08_init(void)
 {
+	s24c08_reset();
     printf("%s(): initialized\n", __func__);
 }
 

@@ -128,13 +128,20 @@ void app_main()
 
     omar_setup();
 
+#if !defined(HW_ESP32_PICOKIT)
     initialise_wifi();
+#endif // !defined(HW_ESP32_PICOKIT)
+
     initialize_console();
 
     /* Register commands */
     esp_console_register_help_command();
     register_system();
+
+#if !defined(HW_ESP32_PICOKIT)
     register_wifi();
+#endif // !defined(HW_ESP32_PICOKIT)
+
     register_omar();
 
     /* Prompt to be printed before each line.

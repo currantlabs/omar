@@ -7,6 +7,7 @@
 #include "i2c.h"
 #include "hw_setup.h"
 #include "s5852a.h"
+#include "s24c08.h"
 
 
 
@@ -48,8 +49,8 @@ void i2c_init(void)
     i2c_param_config(i2c_master_port, &conf);
     i2c_driver_install(i2c_master_port, conf.mode, 0, 0, 0);
 
-    s5852a_init();
-
+    /* s5852a_init(); */
+	s24c08_init();
 }
 
 #if     defined(NEW_DAY)
