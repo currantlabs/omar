@@ -38,6 +38,20 @@ static int console_command(int argc, char *argv[]);
 void i2c_init(void)
 {
 
+    /*
+     * The s24c08 eeprom chip calls for some pretty 
+     * bizarre sequences on the i2c bus which the 
+     * esp32's i2c driver balks at (at bottom, this
+     * driver is controlled by an FSM that doesn't
+     * allow/support some of the required sequences, 
+     * like the START-START-STOP). Anyway - to work
+     * around this we temporarily configure the i2c
+     * bus's scl and sda lines as gpios and bit-bang
+     * our way through the required sequence.
+     */
+
+    s24c08_init();
+
     int i2c_master_port = OMAR_I2C_MASTER_PORT; 
     i2c_config_t conf;
     conf.mode = I2C_MODE_MASTER;
@@ -50,7 +64,6 @@ void i2c_init(void)
     i2c_driver_install(i2c_master_port, conf.mode, 0, 0, 0);
 
     /* s5852a_init(); */
-	s24c08_init();
 }
 
 #if     defined(NEW_DAY)

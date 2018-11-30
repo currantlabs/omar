@@ -31,6 +31,18 @@ void omar_setup(void)
 }
 
 
+static void configure_gpio_output(uint8_t gpio)
+{
+    gpio_config_t gpio_cfg = {
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = 1,
+    };
+    gpio_cfg.pin_bit_mask = ((uint64_t)1 << gpio);
+    gpio_config(&gpio_cfg);
+}
+
+
+
 #if defined(HW_ESP32_PICOKIT)
 
 static void gpio_setup(void)
@@ -101,19 +113,20 @@ static void gpio_setup(void)
     //Don't assert the ADI_RESET just yet:
     gpio_set_level(ADI_RESET, true);
 
+    /* 
+     * Temporarily configure the i2c bus's
+     * scl and sda lines as simple gpios so
+     * that we can bit-bang our way through
+     * the s24c08 eeprom chip's bizarre
+     * setup sequence:
+     */
+    
+    configure_gpio_output(I2C_SDA);
+    configure_gpio_output(I2C_SCL);
+
 }
 
 #elif defined(HW_OMAR)
-
-static void configure_gpio_output(uint8_t gpio)
-{
-    gpio_config_t gpio_cfg = {
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = 1,
-    };
-    gpio_cfg.pin_bit_mask = ((uint64_t)1 << gpio);
-    gpio_config(&gpio_cfg);
-}
 
 #ifdef CONFIGURING_MORE_GPIO_INPUTS
 static void configure_gpio_input(uint8_t gpio)
@@ -144,7 +157,16 @@ static void gpio_setup(void)
     configure_gpio_output(ADI_RESET);
     gpio_set_level(ADI_RESET, true);    //Don't assert the ADI_RESET just yet:
 
-
+    /* 
+     * Temporarily configure the i2c bus's
+     * scl and sda lines as simple gpios so
+     * that we can bit-bang our way through
+     * the s24c08 eeprom chip's bizarre
+     * setup sequence:
+     */
+    
+    configure_gpio_output(I2C_SDA);
+    configure_gpio_output(I2C_SCL);
 
 }
 

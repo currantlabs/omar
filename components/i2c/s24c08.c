@@ -16,23 +16,103 @@
 
 static bool m_initialized = true;
 static uint8_t map_eeprom_addr_to_device_addr(uint16_t addr);
-static esp_err_t s24c08_reset(void);
+static void s24c08_reset(void);
+static void bit_bang_i2c_start(void);
+static void bit_bang_i2c_stop(void);
+static void bit_bang_i2c_clock(uint8_t cycles);
 
-static esp_err_t s24c08_reset(void)
+#define I2C_BIT_BANG_DELAY          (1/portTICK_PERIOD_MS)
+
+static void bit_bang_i2c_clock(uint8_t cycles)
 {
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, 0xff, ACK_CHECK_DIS);
-    i2c_master_start(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(OMAR_I2C_MASTER_PORT, cmd, 1000 / portTICK_RATE_MS);
-    i2c_cmd_link_delete(cmd);
+    // Make sure I2C_SCL is low:
+    gpio_set_level(I2C_SCL, false);
+    vTaskDelay(I2C_BIT_BANG_DELAY);
 
-    cmd = i2c_cmd_link_create();
-    i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(OMAR_I2C_MASTER_PORT, cmd, 1000 / portTICK_RATE_MS);
-    i2c_cmd_link_delete(cmd);
-    return ret;
-	
+    for (uint8_t cycle=0; cycle < cycles; cycle++) {
+        gpio_set_level(I2C_SCL, true);
+        vTaskDelay(I2C_BIT_BANG_DELAY);
+        gpio_set_level(I2C_SCL, false);
+        vTaskDelay(I2C_BIT_BANG_DELAY);
+    }
+
+}
+
+static void bit_bang_i2c_start(void)
+{
+    /* 
+     * A high-to-low transition on I2C_SDA
+     * while I2C_SCL is high is interpreted
+     * as an i2c 'start' condition:
+     */
+
+    // Make sure I2C_SCL is low:
+    gpio_set_level(I2C_SCL, false);
+    vTaskDelay(I2C_BIT_BANG_DELAY);
+
+    // Make sure I2C_SDA is high:
+    gpio_set_level(I2C_SDA, true);
+    vTaskDelay(I2C_BIT_BANG_DELAY);
+
+    // I2C_SCL goes high:
+    gpio_set_level(I2C_SCL, true);
+    vTaskDelay(I2C_BIT_BANG_DELAY);
+
+    // While I2C_SCL is high, bring
+    // I2C_SDA down:
+    gpio_set_level(I2C_SDA, false);
+    vTaskDelay(I2C_BIT_BANG_DELAY);
+
+    // Finally bring I2C_SCL down
+    gpio_set_level(I2C_SCL, false);
+    vTaskDelay(I2C_BIT_BANG_DELAY);
+
+}
+
+static void bit_bang_i2c_stop(void)
+{
+    /* 
+     * A low-to-high transition on I2C_SDA
+     * while I2C_SCL is high is interpreted
+     * as an i2c 'start' condition:
+     */
+
+    // Make sure I2C_SCL is low:
+    gpio_set_level(I2C_SCL, false);
+    vTaskDelay(I2C_BIT_BANG_DELAY);
+
+    // Make sure I2C_SDA is low:
+    gpio_set_level(I2C_SDA, false);
+    vTaskDelay(I2C_BIT_BANG_DELAY);
+
+    // I2C_SCL goes high:
+    gpio_set_level(I2C_SCL, true);
+    vTaskDelay(I2C_BIT_BANG_DELAY);
+
+    // While I2C_SCL is high, bring
+    // I2C_SDA high:
+    gpio_set_level(I2C_SDA, true);
+    vTaskDelay(I2C_BIT_BANG_DELAY);
+
+    // Finally bring I2C_SCL down
+    gpio_set_level(I2C_SCL, false);
+    vTaskDelay(I2C_BIT_BANG_DELAY);
+
+}
+
+static void s24c08_reset(void)
+{
+
+    bit_bang_i2c_start();
+
+    gpio_set_level(I2C_SDA, true);
+
+    bit_bang_i2c_clock(9);
+
+    bit_bang_i2c_start();
+
+    bit_bang_i2c_stop();
+
 }
 
 
@@ -42,7 +122,7 @@ static esp_err_t s24c08_reset(void)
  */
 void s24c08_init(void)
 {
-	s24c08_reset();
+    s24c08_reset();
     printf("%s(): initialized\n", __func__);
 }
 
