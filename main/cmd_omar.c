@@ -264,10 +264,14 @@ static int access_eeprom(int argc, char** argv)
         if (count == 1) {
             printf("%s(): read 0x%02x from eeprom location 0x%x\n", __func__, buf[0], default_address);
         } else {
-            printf("%s(): reading %d bytes starting from eeprom location 0x%x\n", __func__, count, default_address);
-            for (int i=0; i<count; i++) {
-                printf("0x%04x: 0x%02x\n", default_address + i, buf[i]);
+            for (int i=0; i<count/16; i++) {
+                printf("0x%04x: ", default_address + i*16);
+                for (int j=0; i*16+j < count && j < 16; j++) {
+                    printf("0x%02x ", buf[i*16+j]);
+                }
+                printf("\n");
             }
+
             
         }
 
