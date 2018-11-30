@@ -230,21 +230,38 @@ static int access_eeprom(int argc, char** argv)
            eeprom_args.value->ival[0]);
 
 
+    uint8_t value = eeprom_args.value->ival[0];
+
     restore_eeprom_command_option_defaults();
 
-    if (op == 'w') {
-        printf("%s(): sorry charlie, writes aren't quite supported yet :-)\n", __func__);
+    if (op == 'r') {
+        uint8_t data;
+        esp_err_t ret = s24c08_read((uint16_t )default_address, &data);
+        if (ret != ESP_OK) {
+            printf("%s(): s24c08_read() call returned an error - 0x%x\n", __func__, ret);
+            return 1;
+        }
+
+        printf("%s(): read 0x%02x from eeprom location 0x%x\n", __func__, data, default_address);
+
+        return 0;
+
+    }
+
+    // It's a write operation:
+
+    if (op == 'w' && !address_specified) {
+        printf("%s(): must specify the address when writing data\n", __func__);
         return 0;
     }
 
-    uint8_t data;
-    esp_err_t ret = s24c08_random_read((uint16_t )default_address, &data);
+    esp_err_t ret = s24c08_write(default_address, value);
     if (ret != ESP_OK) {
-        printf("%s(): s24c08_random_read() call returned an error - 0x%x\n", __func__, ret);
+        printf("%s(): s24c08_read() call returned an error - 0x%x\n", __func__, ret);
         return 1;
     }
 
-    printf("%s(): read 0x%02x from eeprom location 0x%x\n", __func__, data, default_address);
+    printf("%s(): Wrote 0x%02x to eeprom location 0x%x\n", __func__, value, default_address);
 
     return 0;
 }

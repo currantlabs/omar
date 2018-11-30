@@ -15,7 +15,7 @@
 #define ACK_CHECK_DIS                      0x0              /*!< I2C master will not check ack from slave */
 
 static bool m_initialized = true;
-static uint8_t map_eeprom_addr_to_device_addr(uint16_t addr);
+static s24c08_eeprom_page_t map_eeprom_addr_to_device_addr(uint16_t addr);
 static void s24c08_reset(void);
 static void bit_bang_i2c_start(void);
 static void bit_bang_i2c_stop(void);
@@ -127,19 +127,57 @@ void s24c08_init(void)
 }
 
 /*
- * s24c08_random_read() reads 1 byte from the specified
+ * s24c08_write() writes 1 byte to the specified
  * address (0x000 - 0x3ff) in EEPROM memory.
  *
  */
-esp_err_t s24c08_random_read(uint16_t address, uint8_t *data)
+esp_err_t s24c08_write(uint16_t address, uint8_t data)
 {
     if (!m_initialized) {
         printf("%s(): the s24c08 hasn't been initialized\n", __func__);
         return ESP_FAIL;
     }
 
-    uint8_t i2c_devaddr = map_eeprom_addr_to_device_addr(address);
-    if (i2c_devaddr == S24C08C_I2C_ADDRESS_BADADDR) {
+    s24c08_eeprom_page_t page = map_eeprom_addr_to_device_addr(address);
+    if (page == S24C08C_I2C_PAGE_INVALID) {
+        printf("%s(): address is out of range - 0x%x", __func__, address);
+        return ESP_FAIL;
+    }
+    
+    // Calculate the offset within the page to the desired location:
+    uint8_t in_page_addr = (uint8_t )(address % OMAR_EEPROM_PAGE_SIZE);
+
+    /*
+     * Write the data to the s24c08 eeprom according to the procedure
+     * defined in section "6.1 Byte Write" of the datasheet: send a
+     * byte indicating the offset within the page, followed by the
+     * byte you wish to write to eeprom memory.
+     */
+    uint8_t write_pkt[] = {in_page_addr, data};
+    esp_err_t ret = i2c_tx(page, write_pkt, 2);
+    if (ret != ESP_OK) {
+        printf("%s(): failed to setup the address to read from\n", __func__);
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+
+}
+
+/*
+ * s24c08_read() reads 1 byte from the specified
+ * address (0x000 - 0x3ff) in EEPROM memory.
+ *
+ */
+esp_err_t s24c08_read(uint16_t address, uint8_t *data)
+{
+    if (!m_initialized) {
+        printf("%s(): the s24c08 hasn't been initialized\n", __func__);
+        return ESP_FAIL;
+    }
+
+    s24c08_eeprom_page_t page = map_eeprom_addr_to_device_addr(address);
+    if (page == S24C08C_I2C_PAGE_INVALID) {
         printf("%s(): address is out of range - 0x%x", __func__, address);
         return ESP_FAIL;
     }
@@ -152,53 +190,51 @@ esp_err_t s24c08_random_read(uint16_t address, uint8_t *data)
      * technique describd in section "7.2 Random read"of the s24c08
      * datasheet):
      */
-    esp_err_t ret = i2c_tx(i2c_devaddr, &in_page_addr, 1);
+    esp_err_t ret = i2c_tx(page, &in_page_addr, 1);
     if (ret != ESP_OK) {
         printf("%s(): failed to setup the address to read from\n", __func__);
         return ESP_FAIL;
     }
 
     // Then just read the byte from that location:
-    return s24c08_read(address, data);
+    return s24c08_read_next(page, data);
     
 }
 
 /*
- * s24c08_read() reads 1 byte from the "current address"
+ * s24c08_read_next() reads 1 byte from the "current address"
  * maintained internally by the s24c08 EEPROM chip.
  * 
  * This address may have just been setup by a call to
- * s24c08_random_read(), or we may just be reading 
+ * s24c08_read(), or we may just be reading 
  * from successive locations in EEPROM and so relying
  * on the s24c08 to update its internal address for
  * us.
  *
  * 
  */
-esp_err_t s24c08_read(uint16_t address, uint8_t *data)
+esp_err_t s24c08_read_next(s24c08_eeprom_page_t page, uint8_t *data)
 {
     if (!m_initialized) {
         printf("%s(): the s24c08 hasn't been initialized\n", __func__);
         return ESP_FAIL;
     }
 
-    uint8_t i2c_devaddr = map_eeprom_addr_to_device_addr(address);
-    if (i2c_devaddr == S24C08C_I2C_ADDRESS_BADADDR) {
-        printf("%s(): address is out of range - 0x%x", __func__, address);
+    if (page == S24C08C_I2C_PAGE_INVALID) {
+        printf("%s(): bad page - 0x%x", __func__, page);
         return ESP_FAIL;
     }
     
     // The s24c08 EEPROM chip knows the offset location
-    // within the page specified by 'i2c_devaddr' from
+    // within the page specified by 'page' from
     // which to read the data:
-    esp_err_t ret = i2c_rx(i2c_devaddr, data, 1);
+    esp_err_t ret = i2c_rx(page, data, 1);
     if (ret != ESP_OK) {
         printf("%s(): failed to read the requested data from the s24c08 EEPROM\n", __func__);
         return ESP_FAIL;
     }
 
     return ESP_OK;
-    
 
 }
 
@@ -209,18 +245,18 @@ esp_err_t s24c08_read(uint16_t address, uint8_t *data)
  *
  * map_eeprom_addr_to_device_addr() takes an address
  */
-static uint8_t map_eeprom_addr_to_device_addr(uint16_t addr)
+static s24c08_eeprom_page_t map_eeprom_addr_to_device_addr(uint16_t addr)
 {
     if (addr <= OMAR_EEPROM_BLOCK0_MAXADDR) {
-        return S24C08C_I2C_ADDRESS_BLOCK0;
+        return S24C08C_I2C_PAGE0;
     } else if (addr <= OMAR_EEPROM_BLOCK1_MAXADDR) {
-        return S24C08C_I2C_ADDRESS_BLOCK1;
+        return S24C08C_I2C_PAGE1;
     } else if (addr <= OMAR_EEPROM_BLOCK2_MAXADDR) {
-        return S24C08C_I2C_ADDRESS_BLOCK2;
+        return S24C08C_I2C_PAGE2;
     } else if (addr <= OMAR_EEPROM_BLOCK2_MAXADDR) {
-        return S24C08C_I2C_ADDRESS_BLOCK3;
+        return S24C08C_I2C_PAGE3;
     } else {
-        return S24C08C_I2C_ADDRESS_BADADDR;
+        return S24C08C_I2C_PAGE_INVALID;
     }
 }
 

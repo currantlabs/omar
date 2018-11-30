@@ -63,7 +63,7 @@ void i2c_init(void)
     i2c_param_config(i2c_master_port, &conf);
     i2c_driver_install(i2c_master_port, conf.mode, 0, 0, 0);
 
-    /* s5852a_init(); */
+    s5852a_init();
 }
 
 #if     defined(NEW_DAY)
