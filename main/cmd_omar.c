@@ -169,6 +169,7 @@ static struct {
     struct arg_int *count;      // number of bytes to read 
     struct arg_int *address;    // Ranges from 0x000 to 0x400
     struct arg_int *value;      // (only for "write") Value to be written
+    struct arg_str *values;     // a string of hex values to be written
     struct arg_end *end;
 } eeprom_args;
 
@@ -178,6 +179,7 @@ static void restore_eeprom_command_option_defaults(void)
     eeprom_args.count->ival[0] = 1;
     eeprom_args.address->ival[0] = 0;
     eeprom_args.value->ival[0] = 0xff;
+    eeprom_args.values->sval[0] = "ff";
 }
 
 static int access_eeprom(int argc, char** argv)
@@ -237,7 +239,19 @@ static int access_eeprom(int argc, char** argv)
 
     int count = eeprom_args.count->ival[0];
 
+    bool multiple_write_values_specified = eeprom_args.values->count != 0;
+    const char *write_values = NULL;
+
+    if (multiple_write_values_specified) {
+        write_values = eeprom_args.values->sval[0];
+    }
+
     restore_eeprom_command_option_defaults();
+
+    if (op == 'r' && multiple_write_values_specified) {
+        printf("%s(): you cannot specify multiply write values when performing a read operation\n", __func__);
+        return 1;
+    }
 
     if (op == 'r' 
         && 
@@ -291,6 +305,11 @@ static int access_eeprom(int argc, char** argv)
         return 0;
     }
 
+    if (multiple_write_values_specified) {
+        printf("%s(): attempting to write multiple values to a location: [%s]\n", __func__, write_values);
+        return 0;
+    }
+
     esp_err_t ret = s24c08_write(default_address, value);
     if (ret != ESP_OK) {
         printf("%s(): s24c08_read() call returned an error - 0x%x\n", __func__, ret);
@@ -308,6 +327,7 @@ static void register_eeprom()
     eeprom_args.count = arg_int0(NULL, "count", "<c>", "Number of bytes to read (cannot read past the end of a 256-byte page)");
     eeprom_args.address = arg_int0(NULL, "address", "<a>", "Address to access, 0x000 - 0x3ff (for reads, defaults to 0x000, or to the last specified address)");
     eeprom_args.value = arg_int0(NULL, "value", "<v>", "Value to be written (defaults to 0xff)");
+    eeprom_args.values = arg_str0(NULL, "values", NULL, "A string of hexadecimal digits");
     eeprom_args.end = arg_end(4);
 
     restore_eeprom_command_option_defaults();
