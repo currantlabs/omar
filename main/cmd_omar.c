@@ -306,6 +306,14 @@ static int access_eeprom(int argc, char** argv)
     }
 
     if (multiple_write_values_specified) {
+
+        int length = strlen(write_values);
+
+        if (length % 2 != 0) {
+            printf("%s(): a properly-formed hex argument must contain an even number of digits (i.e., you must write \"0xf\" as \"0f\" etc)\n", __func__);
+            return 1;
+        }
+                            
         printf("%s(): attempting to write multiple values to a location: [%s]\n", __func__, write_values);
         return 0;
     }
