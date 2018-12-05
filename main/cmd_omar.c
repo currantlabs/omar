@@ -182,6 +182,45 @@ static void restore_eeprom_command_option_defaults(void)
     eeprom_args.values->sval[0] = "ff";
 }
 
+static bool valid_hexadecimal_value(const char *arg)
+{
+    int length = strlen(arg);
+
+    if (length % 2 != 0) {
+        printf("%s(): a properly-formed hex argument must contain an even number of digits (i.e., you must write \"0xf\" as \"0f\" etc)\n", __func__);
+        return false;
+    }
+                            
+    // Too bad esp-idf doesn't support the "regex.h" part of newlib yet!
+    // Have to do some stuff by hand..
+    if (arg[0] == '0' && arg[1] == 'x') {
+        printf("%s(): a leading \"0x\" is not required at the start of the hexadecimal digit as is done in [%s]\n", __func__, arg);
+        return false;
+    }
+    
+    // Check for valid digits:
+    for (int i=0; i<length; i++) {
+        char digit = arg[i];
+
+        if (digit >= '0' && digit <= '9')
+            continue;
+
+        if (digit >= 'a' && digit <= 'f')
+            continue;
+
+        if (digit >= 'A' && digit <= 'F')
+            continue;
+
+        printf("%s(): the digit \"%c\" is not part of a hexadecimal number so [%s] isn't valid\n", __func__, digit, arg);
+        return false;
+
+    }
+    
+    // Everying checks out!
+    return true;
+
+}
+
 static int access_eeprom(int argc, char** argv)
 {
     static int default_address = 0;
@@ -307,13 +346,10 @@ static int access_eeprom(int argc, char** argv)
 
     if (multiple_write_values_specified) {
 
-        int length = strlen(write_values);
-
-        if (length % 2 != 0) {
-            printf("%s(): a properly-formed hex argument must contain an even number of digits (i.e., you must write \"0xf\" as \"0f\" etc)\n", __func__);
+        if (!valid_hexadecimal_value(write_values)) {
             return 1;
         }
-                            
+
         printf("%s(): attempting to write multiple values to a location: [%s]\n", __func__, write_values);
         return 0;
     }
@@ -502,7 +538,7 @@ static void register_7953(void)
 
 static int omar_version(int argc, char** argv)
 {
-    printf("Verion %s on branch \"%s\", built on %s\n", VERSION, BRANCH, TIMESTAMP);
+    printf("Verion %s on branch \"%s\", built on %s\n", OMAR_VERSION, OMAR_BRANCH, OMAR_TIMESTAMP);
     return 0;
 }
 
