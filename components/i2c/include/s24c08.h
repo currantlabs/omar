@@ -43,9 +43,11 @@ typedef enum {
 #define OMAR_EEPROM_BLOCK2_MAXADDR      (0x2ff)
 #define OMAR_EEPROM_BLOCK3_MAXADDR      (0x3ff)
 
+#define MAX_PAGE_WRITE                  (16)
+
 // Functions:
 void s24c08_init(void);
 esp_err_t s24c08_read(uint16_t address, uint8_t *data, uint16_t count);     // read some bytes
-esp_err_t s24c08_write(uint16_t address, uint8_t data);                     // write a byte
+esp_err_t s24c08_write(uint16_t address, uint8_t *data, uint16_t count);    // write a byte
 
 

@@ -224,6 +224,7 @@ static bool valid_hexadecimal_value(const char *arg)
 static int access_eeprom(int argc, char** argv)
 {
     static int default_address = 0;
+	static uint8_t write_buffer[OMAR_EEPROM_PAGE_SIZE] = {0};
 
     int nerrors = arg_parse(argc, argv, (void**) &eeprom_args);
     if (nerrors != 0) {
@@ -350,13 +351,54 @@ static int access_eeprom(int argc, char** argv)
             return 1;
         }
 
+		uint16_t xfer_size = strlen(write_values)/2;
+
+		if (xfer_size > OMAR_EEPROM_PAGE_SIZE) {
+			printf("%s(): attempting to write %d bytes, more than the max xfer of %d bytes\n", 
+				   __func__, 
+				   xfer_size, 
+				   OMAR_EEPROM_PAGE_SIZE);
+
+			return 1;
+		}
+
+
         printf("%s(): attempting to write multiple values to a location: [%s]\n", __func__, write_values);
-        return 0;
+
+		// Convert the string of hex digits into actual hex values:
+		for (int i=0; i<xfer_size; i++) {
+			const char digit[] = {write_values[2*i], write_values[2*i+1]};
+
+			if (digit[0] == '0' && digit[1] == '0') {
+				// strtoul() returns 0 if no conversion could
+				// be performed
+				write_buffer[i] = 0;
+				continue;
+			}
+
+			unsigned long value = strtoul(digit, NULL, 16);
+			if (value == 0) {
+				printf("%s(): strtoul() failed to convert [%s] to an integer\n", __func__, digit);
+				return 1;
+			}
+
+			write_buffer[i] = (uint8_t ) value;
+
+		}
+		
+
+		printf("%s(): calling s24c08_write(0x%03x, 0x%02x, %d)\n",
+			   __func__, default_address, write_buffer[0], xfer_size);
+
+		if (s24c08_write(default_address, write_buffer, xfer_size) != ESP_OK) {
+			return 1;
+		}
+		
     }
 
-    esp_err_t ret = s24c08_write(default_address, value);
+    esp_err_t ret = s24c08_write(default_address, &value, 1);
     if (ret != ESP_OK) {
-        printf("%s(): s24c08_read() call returned an error - 0x%x\n", __func__, ret);
+        printf("%s(): s24c08_write() call returned an error - 0x%x\n", __func__, ret);
         return 1;
     }
 
