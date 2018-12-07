@@ -22,7 +22,7 @@ static void bit_bang_i2c_start(void);
 static void bit_bang_i2c_stop(void);
 static void bit_bang_i2c_clock(uint8_t cycles);
 static esp_err_t s24c08_read_nbytes(s24c08_eeprom_page_t page, uint8_t *data, uint16_t count);
-static esp_err_t s24c08_write_nbytes(uint16_t address, uint8_t *data, uint16_t count);
+/* static esp_err_t s24c08_write_nbytes(uint16_t address, uint8_t *data, uint16_t count); */
 
 #define I2C_BIT_BANG_DELAY          (1/portTICK_PERIOD_MS)
 
@@ -129,6 +129,24 @@ void s24c08_init(void)
     printf("%s(): initialized\n", __func__);
 }
 
+static esp_err_t s24c08_write_up_to_16_bytes(s24c08_eeprom_page_t page, uint8_t *data, uint16_t count)
+{
+    esp_err_t status;
+
+    printf("%s(0x%02x, 0x%02x, %d)\n", __func__, page, data[0], count);
+
+    if ((status=i2c_tx(page, data, count)) != ESP_OK) {
+        printf("%s(): failed to write the %d bytes of data to address 0x%02x\n",
+               __func__,
+               count,
+               data[0]);
+
+        return status;
+    }
+
+    return ESP_OK;
+}
+
 /*
  * s24c08_write() writes 'count' bytes to the specified
  * address (0x000 - 0x3ff) in EEPROM memory.
@@ -142,6 +160,11 @@ esp_err_t s24c08_write(uint16_t address, uint8_t *data, uint16_t count)
 
     if (!m_initialized) {
         printf("%s(): the s24c08 hasn't been initialized\n", __func__);
+        return ESP_FAIL;
+    }
+
+    if (count > 16) {
+        printf("%s(): at the moment we only support writing up to 16 bytes at one go (not %d)\n", __func__, count);
         return ESP_FAIL;
     }
 
@@ -170,7 +193,15 @@ esp_err_t s24c08_write(uint16_t address, uint8_t *data, uint16_t count)
     /* return ESP_OK; */
 
 
-	return s24c08_write_nbytes(address, data, count);
+    s24c08_eeprom_page_t page = map_eeprom_addr_to_device_addr(address);
+    if (page == S24C08C_I2C_PAGE_INVALID) {
+        printf("%s(): address is out of range - 0x%x", __func__, address);
+        return ESP_FAIL;
+    }
+
+    uint8_t write_buf[32] = {in_page_addr, 0};
+    memcpy(&write_buf[1], data, count);
+    return s24c08_write_up_to_16_bytes(page, write_buf, count+1);
 
 }
 
@@ -180,54 +211,65 @@ esp_err_t s24c08_write(uint16_t address, uint8_t *data, uint16_t count)
  * datasheet, section "6.2 Page write").
  * 
  */
-static esp_err_t s24c08_write_nbytes(uint16_t address, uint8_t *data, uint16_t count)
-{
-	esp_err_t status = ESP_OK;
-    s24c08_eeprom_page_t page = map_eeprom_addr_to_device_addr(address);
-    if (page == S24C08C_I2C_PAGE_INVALID) {
-        printf("%s(): address is out of range - 0x%x", __func__, address);
-        return ESP_FAIL;
-    }
-	uint8_t write_pkt[17] = {0};	// allow for 1 address byte + at most 16 data bytes
-	uint8_t *write_buf = &write_pkt[1];
-	uint16_t offset = 0;
+/* static esp_err_t s24c08_write_nbytes(uint16_t address, uint8_t *data, uint16_t count) */
+/* { */
+/*  esp_err_t status = ESP_OK; */
+/*     s24c08_eeprom_page_t page = map_eeprom_addr_to_device_addr(address); */
+/*     if (page == S24C08C_I2C_PAGE_INVALID) { */
+/*         printf("%s(): address is out of range - 0x%x", __func__, address); */
+/*         return ESP_FAIL; */
+/*     } */
+/*  uint8_t write_pkt[17] = {0};    // allow for 1 address byte + at most 16 data bytes */
+/*  uint8_t *write_buf = &write_pkt[1]; */
+/*  uint16_t offset = 0; */
 
-	while (count > 0) {
-		uint8_t xfersize = (count > MAX_PAGE_WRITE ? MAX_PAGE_WRITE : count);
-		uint8_t *dataptr = &data[offset];
+    
 
-		write_pkt[0] = address + offset;
-		memcpy(write_buf, dataptr, xfersize);
 
-		printf("%s(): about to call i2c_tx(0x%02x, 0x%02x, %d) [count = %d, offset = %d, xfersize = %d]\n", 
-			   __func__, page, write_pkt[0], xfersize + 1, count, offset, xfersize);
 
-		// Remember to write 'xfersize' data bytes, plus 1 for the address byte:
-		if ((status=i2c_tx(page, write_pkt, xfersize + 1)) != ESP_OK) {
-			printf("%s(): failed to write the %d bytes of data to address 0x%02x\n",
-				   __func__,
-				   xfersize,
-				   write_pkt[0]);
 
-			return status;
-		}
 
-		// Give the s24c08 time to finish writing the data:
-        vTaskDelay(I2C_BIT_BANG_DELAY);	// about 10 microseconds
+/*  /\* while (count > 0) { *\/ */
+/*  /\*     uint8_t xfersize = (count > MAX_PAGE_WRITE ? MAX_PAGE_WRITE : count); *\/ */
+/*  /\*     uint8_t *dataptr = &data[offset]; *\/ */
 
-		printf("%s(): bottom of loop, just before subtracting %d (xfersize): offset = %d and count = %d\n", __func__, xfersize, offset, count);
+/*  /\*     write_pkt[0] = address + offset; *\/ */
+/*  /\*     memcpy(write_buf, dataptr, xfersize); *\/ */
 
-		// update and continue:
-		offset = offset + xfersize;
-		count = count - xfersize;
+/*  /\*     printf("%s(): about to call i2c_tx(0x%02x, 0x%02x, %d) [count = %d, offset = %d, xfersize = %d]\n",  *\/ */
+/*  /\*            __func__, page, write_pkt[0], xfersize + 1, count, offset, xfersize); *\/ */
 
-		printf("%s(): bottom of loop, offset = %d and count = %d\n", __func__, offset, count);
+/*  /\*     // Remember to write 'xfersize' data bytes, plus 1 for the address byte: *\/ */
+/*  /\*     if ((status=i2c_tx(page, write_pkt, xfersize + 1)) != ESP_OK) { *\/ */
+/*  /\*         printf("%s(): failed to write the %d bytes of data to address 0x%02x\n", *\/ */
+/*  /\*                __func__, *\/ */
+/*  /\*                xfersize, *\/ */
+/*  /\*                write_pkt[0]); *\/ */
 
-	}
+/*  /\*         return status; *\/ */
+/*  /\*     } *\/ */
 
-	return ESP_OK;
+/*  /\*     // Give the s24c08 time to finish writing the data: *\/ */
+/*     /\*     vTaskDelay(I2C_BIT_BANG_DELAY);  // about 10 microseconds *\/ */
 
-}
+/*  /\*     printf("%s(): bottom of loop, just before subtracting %d (xfersize): offset = %d and count = %d\n", __func__, xfersize, offset, count); *\/ */
+
+/*  /\*     // update and continue: *\/ */
+/*  /\*     offset = offset + xfersize; *\/ */
+/*  /\*     count = count - xfersize; *\/ */
+
+/*  /\*     printf("%s(): bottom of loop, offset = %d and count = %d\n", __func__, offset, count); *\/ */
+
+/*  /\*     if (count == 0) { *\/ */
+/*  /\*       printf("%s(): bottom of loop, count is 0, escaping!\n", __func__); *\/ */
+/*  /\*       return ESP_OK; *\/ */
+/*  /\*     } *\/ */
+
+/*  /\* } *\/ */
+
+/*  return ESP_OK; */
+
+/* } */
 
 /*
  * s24c08_read() reads 'count' bytes from the specified
