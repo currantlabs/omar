@@ -7,7 +7,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <ctype.h>
+
 #include "argtable3/argtable3.h"
+#define MAX_ARGTABLE3_STRING_ARG_LENGTH             (224)
+
 #include "esp_log.h"
 #include "esp_console.h"
 #include "hw_setup.h"
@@ -316,20 +319,6 @@ static int access_eeprom(int argc, char** argv)
             repeated_write = true;
         }
 
-        // Alert the user if they're trying to read/write past the end of eeprom
-        if (address + count > OMAR_EEPROM_MAXADDR) {
-            printf("%s(): you are attempting to %s past the end of eeprom memory at 0x%03x (addr = 0x%03x + 0x%03x [%d] > 0x%03x)\n",
-                   __func__,
-                   (operation == 'r' ? "read" : "write" ),
-                   OMAR_EEPROM_MAXADDR,
-                   address,
-                   count, count,
-                   OMAR_EEPROM_MAXADDR);
-
-            return 1;
-
-        }
-
     } else {
         // If --count is not specified, default to a count of 1:
         count = 1;
@@ -377,7 +366,19 @@ static int access_eeprom(int argc, char** argv)
             }
 
             multiple_write = true;
-            count = strlen(values);
+
+            // There is apparently a limit in the 'argtable3' framework
+            // to the length of string arguments: anything bigger than 224
+            // bytes in length will be corrupt, so check for that first:
+            if (strlen(values) > MAX_ARGTABLE3_STRING_ARG_LENGTH) {
+                printf("%s(): our argument parsing framework, argtable3, chokes on string args longer than %d bytes (you specified one %d bytes long)\n",
+                       __func__,
+                       MAX_ARGTABLE3_STRING_ARG_LENGTH,
+                       strlen(values));
+                return 1;
+            }
+            
+            count = (strlen(values) >> 1); // the 'values' string is composed of 'nibbles' and two nibbles = 1 byte
         } else {
             value = eeprom_args.value->ival[0];
         }
@@ -390,8 +391,22 @@ static int access_eeprom(int argc, char** argv)
 
     }
 
+    // (6) Alert the user if they're trying to read/write past the end of eeprom
+    if (address + count > OMAR_EEPROM_MAXADDR+1) {
+        printf("%s(): you are attempting to %s past the end of eeprom memory at 0x%03x (addr = 0x%03x + 0x%03x [%d] > 0x%03x)\n",
+               __func__,
+               (operation == 'r' ? "read" : "write" ),
+               OMAR_EEPROM_MAXADDR,
+               address,
+               count, count,
+               OMAR_EEPROM_MAXADDR);
 
-    // (5) Summarize what we're doing:
+        return 1;
+
+    }
+
+
+    // (6) Summarize what we're doing:
     if (operation == 'r') {
         printf("%s(): eeprom read of %d bytes starting from address 0x%04x\n",
                __func__,
