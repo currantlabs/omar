@@ -233,6 +233,20 @@ static int access_eeprom(int argc, char** argv)
         return 1;
     }
 
+    if (eeprom_args.read->count == 0
+        &&
+        eeprom_args.write->count == 0) {
+        printf("%s(): specify either a \"read\" or a \"write\" operation\n", __func__);
+        return 1;
+    }
+
+    if (eeprom_args.read->count == 1
+        &&
+        eeprom_args.write->count == 1) {
+        printf("%s(): cannot specify both a \"read\" and a \"write\" operation - pick one\n", __func__);
+        return 1;
+    }
+
     /* const char op = eeprom_args.operation->sval[0][0]; */
 
     /* if (!(op == 'w' || op == 'r')) { */
