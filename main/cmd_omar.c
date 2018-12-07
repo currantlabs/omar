@@ -223,8 +223,38 @@ static bool valid_hexadecimal_value(const char *arg)
 
 static int access_eeprom(int argc, char** argv)
 {
-    /* static int default_address = 0; */
+    static int address = 0;
+    uint16_t count;
     /* static uint8_t write_buffer[OMAR_EEPROM_PAGE_SIZE] = {0}; */
+    char operation; 
+
+    /*
+     * The 'value' and 'values' variables only come into play
+     * during a write operation.
+     *
+     * 'value' is used to specify a particular byte that is
+     * written some number of times (typically once, but the
+     * user can specify that it be repeated using the --count
+     * option).
+     *
+     * 'values' points to a string of hexadecimal digits, and
+     * holds the data indicated when the --values option is used.
+     *
+     */
+    uint8_t value = 0xff;
+    const char *values;
+
+    /*
+     * A 'repeated_write' is writing the same byte of data the 
+     * specified (by --count) number of times .
+     * 
+     * A 'multiple_write' means you've specified a string of
+     * hexadecimal values to be written (using the --values option).
+     *
+     * These are mutually exclusive!
+     */
+    bool repeated_write = false;
+    bool multiple_write = false;
 
     int nerrors = arg_parse(argc, argv, (void**) &eeprom_args);
     if (nerrors != 0) {
@@ -233,6 +263,7 @@ static int access_eeprom(int argc, char** argv)
         return 1;
     }
 
+    // (1) Figure out whether it's a 'read' or a 'write':
     if (eeprom_args.read->count == 0
         &&
         eeprom_args.write->count == 0) {
@@ -246,6 +277,142 @@ static int access_eeprom(int argc, char** argv)
         printf("%s(): cannot specify both a \"read\" and a \"write\" operation - pick one\n", __func__);
         return 1;
     }
+
+    operation = (eeprom_args.read->count == 1 ? 'r' : 'w');
+
+    // (2) Get the address (or default to last address if none specified):
+    if (eeprom_args.address->count != 0) {
+        int addr = eeprom_args.address->ival[0];
+        if (addr < 0 || addr > OMAR_EEPROM_MAXADDR) {
+            printf("%s() invalid address - please specify something between 0x%03x and 0x%03x\n", 
+                   __func__, 
+                   0,
+                   OMAR_EEPROM_MAXADDR);
+
+            return 1;
+
+        } else {
+            address = addr;
+        }
+    
+    }
+
+    // (3) Find out what the count is (or default to 1 if not specified):
+    if (eeprom_args.count->count != 0) {
+        count = eeprom_args.count->ival[0];
+
+        if (operation == 'w' && count > 1) {
+            repeated_write = true;
+        }
+
+        // Alert the user if they're trying to read/write past the end of eeprom
+        if (address + count > OMAR_EEPROM_MAXADDR) {
+            printf("%s(): you are attempting to %s past the end of eeprom memory at 0x%03x (addr = 0x%03x + 0x%03x [%d] > 0x%03x)\n",
+                   __func__,
+                   (operation == 'r' ? "read" : "write" ),
+                   OMAR_EEPROM_MAXADDR,
+                   address,
+                   count, count,
+                   OMAR_EEPROM_MAXADDR);
+
+            return 1;
+
+        }
+
+    } else {
+        // If --count is not specified, default to a count of 1:
+        count = 1;
+    }
+
+    // (4) If this is a write operation, figure out what we're writing
+    if (operation == 'w') {
+
+        if (eeprom_args.value->count == 1
+            &&
+            eeprom_args.values->count == 1) {
+            printf("%s(): the \"--value\" and \"--values\" options are mutually exclusive - pick one\n", __func__);
+            return 1;
+        }
+
+        // Check for a very specific corner case: specifying --count and
+        // --values at the same time, which isn't allowed:
+        if (eeprom_args.count->count != 0
+            &&
+            eeprom_args.values->count != 0) {
+
+            printf("%s(): you cannot specify \"--count\" and \"--values\" at the same time (operation not supported)\n", __func__);
+            return 1;
+        }
+
+        if (eeprom_args.value->count == 0
+            &&
+            eeprom_args.values->count == 0) {
+
+            // If a value isn't specified, default to 0xff
+            value = 0xff;
+
+            // Check for the special "short-cut" case where
+            // you can specify repeated writes of a given value
+            if (count > 1) {
+                repeated_write = true;
+            }
+
+        } else if (eeprom_args.values->count != 0) {
+            values = eeprom_args.values->sval[0];
+
+            if (!valid_hexadecimal_value(values)) {
+                printf("%s(): the specified string of hexadecimal values isn't valid\n", __func__);
+                return 1;
+            }
+
+            multiple_write = true;
+            count = strlen(values);
+        } else {
+            value = eeprom_args.value->ival[0];
+        }
+            
+        // Final consistency check:
+        if (repeated_write && multiple_write) {
+            printf("%s(): argument parsing error (we think we're doing both a repeated_write and a multiple_write)", __func__);
+            return 1;
+        }
+
+    }
+
+
+    // (5) Summarize what we're doing:
+    if (operation == 'r') {
+        printf("%s(): eeprom read of %d bytes starting from address 0x%04x\n",
+               __func__,
+               count,
+               address);
+    } else {
+        if (multiple_write) {
+
+            printf("%s(): eeprom multiple write of the %d bytes comprising the hexadecimal string [0x%s], starting from address 0x%04x\n",
+                   __func__,
+                   count,
+                   values,
+                   address);
+
+        } else if (repeated_write) {
+            
+            printf("%s(): eeprom repeated write of the value 0x%02x, %d times, starting from address 0x%04x\n",
+                   __func__,
+                   value,
+                   count,
+                   address);
+
+        } else {
+            printf("%s(): eeprom write of the value 0x%02x to address 0x%04x\n",
+                   __func__,
+                   value,
+                   address);
+        }
+    }
+
+
+    return 0;
 
     /* const char op = eeprom_args.operation->sval[0][0]; */
 
@@ -440,11 +607,11 @@ static void register_eeprom()
         "<int>", 
         "Number of bytes to read or write (when writing, number of times to write a value)");
 
-    eeprom_args.address = arg_int1(
+    eeprom_args.address = arg_int0(
         "a", 
         "address", 
         "<int>", 
-        "Address to access, 0x000 - 0x3ff");
+        "Address to access, 0x000 - 0x3ff (defaults to 0, or the last address specified)");
 
     eeprom_args.value = arg_int0(
         "v",
