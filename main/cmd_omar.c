@@ -280,6 +280,17 @@ static int access_eeprom(int argc, char** argv)
 
     operation = (eeprom_args.read->count == 1 ? 'r' : 'w');
 
+    // Specifying either --value or --values makes no sense if you're reading:
+    if (operation == 'r'
+        &&
+        (eeprom_args.value->count == 1 || eeprom_args.values->count == 1)) {
+
+        printf("%s(): the --value and --values options only apply to write operations\n", __func__);
+        return 1;
+
+    }
+        
+
     // (2) Get the address (or default to last address if none specified):
     if (eeprom_args.address->count != 0) {
         int addr = eeprom_args.address->ival[0];
