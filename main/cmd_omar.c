@@ -437,9 +437,6 @@ static int access_eeprom(int argc, char** argv)
                 printf("\n");
             }
         }
-        
-
-
     } else {
         if (multiple_write) {
 
@@ -449,6 +446,27 @@ static int access_eeprom(int argc, char** argv)
                    values,
                    address);
 
+            uint8_t *buf = eeprom_read_buf;
+            for (int i=0; i<count; i++) {
+                const char digit[] = {values[2*i], values[2*i+1], 0};
+
+                if (digit[0] == '0' && digit[1] == '0') {
+                    // strtoul() returns 0 if no conversion could
+                    // be performed
+                    buf[i] = 0;
+                    continue;
+                }
+
+                unsigned long value = strtoul(digit, NULL, 16);
+                if (value == 0) {
+                    printf("%s(): strtoul() failed to convert [%s] to an integer\n", __func__, digit);
+                    return 1;
+                }
+
+                buf[i] = (uint8_t ) value;
+
+            }
+
         } else if (repeated_write) {
             
             printf("%s(): eeprom repeated write of the value 0x%02x, %d times, starting from address 0x%04x\n",
@@ -457,11 +475,30 @@ static int access_eeprom(int argc, char** argv)
                    count,
                    address);
 
+            // Set up the transfer buffer:
+            uint8_t *buf = eeprom_read_buf;
+            for (int i=0; i<count; i++) {
+                buf[i] = value;
+            }
+
+            esp_err_t ret = s24c08_write(address, buf, count);
+            if (ret != ESP_OK) {
+                printf("%s(): s24c08_write() call returned an error - 0x%x\n", __func__, ret);
+                return 1;
+            }
+
+
         } else {
             printf("%s(): eeprom write of the value 0x%02x to address 0x%04x\n",
                    __func__,
                    value,
                    address);
+
+            esp_err_t ret = s24c08_write(address, &value, 1);
+            if (ret != ESP_OK) {
+                printf("%s(): s24c08_write() call returned an error - 0x%x\n", __func__, ret);
+                return 1;
+            }
         }
     }
 
