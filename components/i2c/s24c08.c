@@ -287,36 +287,82 @@ esp_err_t s24c08_read(uint16_t address, uint8_t *data, uint16_t count)
         return ESP_FAIL;
     }
 
-    s24c08_eeprom_page_t page = map_eeprom_addr_to_device_addr(address);
-    if (page == S24C08C_I2C_PAGE_INVALID) {
-        printf("%s(): address is out of range - 0x%x", __func__, address);
-        return ESP_FAIL;
-    }
-    
-    // Calculate the offset within the page to the desired location:
-    uint8_t in_page_addr = (uint8_t )(address % OMAR_EEPROM_PAGE_SIZE);
-
-    if (count + in_page_addr > OMAR_EEPROM_PAGE_SIZE) {
-        printf("%s(): cannot read across page boundaries just yet (offset in page = 0x%02x, count = 0x%02x\n",
-               __func__, in_page_addr, count);
+    if (count + address > OMAR_EEPROM_SIZE) {
+        printf("%s(): you are attempting to read past the end of eeprom (0x%04x) (start address = 0x%04x, count = 0x%04x)\n",
+               __func__, OMAR_EEPROM_SIZE-1, address, count);
         return ESP_FAIL;
     }
 
-    /*
-     * First, set up the address to be read from (using the "dummy write" 
-     * technique describd in section "7.2 Random read"of the s24c08
-     * datasheet):
-     */
-    esp_err_t ret = i2c_tx(page, &in_page_addr, 1);
-    if (ret != ESP_OK) {
-        printf("%s(): failed to setup the address to read from\n", __func__);
-        return ESP_FAIL;
+    // Because s24c08_read_nbytes() can only read data from one
+    // contiguous 256-byte "page" of s24c08 eeprom memory, figure
+    // out how many eeprom pages are spanned, and thus how many
+    // invocations are required:
+
+    uint8_t pages_spanned = 1 + ((count % OMAR_EEPROM_PAGE_SIZE)/OMAR_EEPROM_PAGE_SIZE);
+    uint16_t bytes_to_read_from_this_page = OMAR_EEPROM_PAGE_SIZE - (address % OMAR_EEPROM_PAGE_SIZE);
+    uint16_t current_address = address;
+    uint16_t final_address = address + count;
+
+    printf("%s(): Reading %d bytes from address 0x%04x\n",__func__, count, address);
+    for (int i=0; i<pages_spanned; i++) {
+
+        printf("%s(): Reading from eeprom page %d of %d (current_address = 0x%04x, final_address = 0x%04x)\n", 
+               __func__,
+               i,
+               pages_spanned,
+               current_address,
+               final_address);
+
+        s24c08_eeprom_page_t page = map_eeprom_addr_to_device_addr(current_address);
+        if (page == S24C08C_I2C_PAGE_INVALID) {
+            printf("%s(): address is out of range - 0x%04x\n", __func__, current_address);
+            return ESP_FAIL;
+        }
+    
+        // Calculate the offset within the page to the desired location:
+        uint8_t in_page_addr = (uint8_t )(current_address % OMAR_EEPROM_PAGE_SIZE);
+
+        /*
+         * First, set up the address to be read from (using the "dummy write" 
+         * technique describd in section "7.2 Random read"of the s24c08
+         * datasheet):
+         */
+        esp_err_t ret = i2c_tx(page, &in_page_addr, 1);
+        if (ret != ESP_OK) {
+            printf("%s(): failed to setup the address to read from\n", __func__);
+            return ESP_FAIL;
+        }
+
+        if (ESP_OK != 
+            s24c08_read_nbytes(
+                page, 
+                &data[current_address - address], 
+                bytes_to_read_from_this_page)) {
+
+            printf("%s(): Failed reading from page %d of %d (current_address = 0x%04x)\n", 
+                   __func__, 
+                   i, 
+                   pages_spanned,
+                   current_address);
+
+            return ESP_FAIL;
+
+        }
+        
+        current_address += bytes_to_read_from_this_page;
+
+        uint16_t bytes_to_go = final_address - current_address;
+
+        bytes_to_read_from_this_page = 
+            (bytes_to_go > OMAR_EEPROM_PAGE_SIZE) 
+            ?
+            OMAR_EEPROM_PAGE_SIZE
+            :
+            bytes_to_go;
+
     }
 
-    return s24c08_read_nbytes(page, data, count);
-    
-    
-
+    return ESP_OK;
 }
 
 /*

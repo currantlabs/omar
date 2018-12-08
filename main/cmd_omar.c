@@ -224,6 +224,8 @@ static bool valid_hexadecimal_value(const char *arg)
 
 }
 
+static uint8_t eeprom_read_buf[OMAR_EEPROM_SIZE] = {0}; // For debug purposes for the moment
+
 static int access_eeprom(int argc, char** argv)
 {
     static int address = 0;
@@ -412,6 +414,32 @@ static int access_eeprom(int argc, char** argv)
                __func__,
                count,
                address);
+
+        uint8_t *buf = eeprom_read_buf;
+
+        esp_err_t ret = s24c08_read((uint16_t )address, buf, count);
+        if (ret != ESP_OK) {
+            printf("%s(): s24c08_read() call returned an error - 0x%x\n", __func__, ret);
+            return 1;
+        }
+
+        if (count == 1) {
+            printf("%s(): read 0x%02x from eeprom location 0x%04x\n", __func__, buf[0], address);
+        } else {
+            for (int i=0; i<=count/16; i++) {
+                if (i*16 == count) {
+                    break;
+                }
+                printf("0x%04x: ", address + i*16);
+                for (int j=0; i*16+j < count && j < 16; j++) {
+                    printf("0x%02x ", buf[i*16+j]);
+                }
+                printf("\n");
+            }
+        }
+        
+
+
     } else {
         if (multiple_write) {
 
