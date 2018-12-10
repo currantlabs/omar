@@ -170,6 +170,8 @@ static void register_temperature()
 static struct {
     struct arg_lit *write;      // write
     struct arg_lit *read;       // read 
+    struct arg_lit *dump;       // dump all 1024 bytes of eeprom memory
+    struct arg_lit *erase;      // set all 1024 bytes of eeprom memory to 0xff
     struct arg_int *address;    // Ranges from 0x000 to 0x400
     struct arg_int *count;      // number of bytes to read 
     struct arg_int *value;      // (only for "write") Value to be written
@@ -266,6 +268,59 @@ static int access_eeprom(int argc, char** argv)
         arg_print_errors(stderr, eeprom_args.end, argv[0]);
         restore_eeprom_command_option_defaults();
         return 1;
+    }
+
+    // (0) First check for special cases like 'dump' or 'erase':
+    if (eeprom_args.dump->count == 1) {
+
+        uint8_t *buf = eeprom_read_buf;
+        count = OMAR_EEPROM_SIZE;
+        address = 0;
+
+        esp_err_t ret = s24c08_read((uint16_t )0, buf, count);
+
+        if (ret != ESP_OK) {
+            printf("%s(): s24c08_read() call returned an error - 0x%x\n", __func__, ret);
+            return 1;
+        }
+
+        for (int i=0; i<=count/16; i++) {
+            if (i*16 == count) {
+                break;
+            }
+            printf("0x%04x: ", address + i*16);
+            for (int j=0; i*16+j < count && j < 16; j++) {
+                printf("0x%02x ", buf[i*16+j]);
+            }
+            printf("\n");
+        }
+
+
+        goto finish;
+    }
+
+
+    if (eeprom_args.erase->count == 1) {
+        uint8_t *buf = eeprom_read_buf;
+        count = 16;
+        address = 0;
+        
+        for (int i=0; i<count; i++) {
+            buf[i]= 0xff;
+        }
+
+        for (int i=0; i<(OMAR_EEPROM_SIZE >> 4); i++) {
+
+            esp_err_t ret = s24c08_write(address + i*count, buf, count);
+            if (ret != ESP_OK) {
+                printf("%s(): s24c08_write() call returned an error - 0x%x\n", __func__, ret);
+                return 1;
+            }
+
+        }
+
+        goto finish;
+
     }
 
     // (1) Figure out whether it's a 'read' or a 'write':
@@ -502,6 +557,7 @@ static int access_eeprom(int argc, char** argv)
         }
     }
 
+    finish: 
 
     return 0;
 
@@ -692,6 +748,16 @@ static void register_eeprom()
         "write", 
         "Write data to eeprom");
 
+    eeprom_args.dump = arg_lit0(
+        "d", 
+        "dump", 
+        "Dump all 1024 bytes of eeprom memory");
+
+    eeprom_args.erase = arg_lit0(
+        "e", 
+        "erase", 
+        "Set all 1024 bytes of eeprom memory to 0xff");
+
     eeprom_args.count = arg_int0(
         "c",
         "count", 
@@ -716,7 +782,7 @@ static void register_eeprom()
         "<string>", 
         "A string of hexadecimal digits to be written");
 
-    eeprom_args.end = arg_end(6);
+    eeprom_args.end = arg_end(8);
 
     /* restore_eeprom_command_option_defaults(); */
 
