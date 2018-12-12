@@ -232,7 +232,6 @@ static int access_eeprom(int argc, char** argv)
 {
     static int address = 0;
     uint16_t count;
-    /* static uint8_t write_buffer[OMAR_EEPROM_PAGE_SIZE] = {0}; */
     char operation; 
 
     /*
@@ -522,6 +521,14 @@ static int access_eeprom(int argc, char** argv)
 
             }
 
+            esp_err_t ret = s24c08_write(address, buf, count);
+            if (ret != ESP_OK) {
+                printf("%s(): s24c08_write() call returned an error - 0x%x\n", __func__, ret);
+                return 1;
+            }
+
+
+
         } else if (repeated_write) {
             
             printf("%s(): eeprom repeated write of the value 0x%02x, %d times, starting from address 0x%04x\n",
@@ -557,183 +564,10 @@ static int access_eeprom(int argc, char** argv)
         }
     }
 
-    finish: 
+finish: 
 
     return 0;
 
-    /* const char op = eeprom_args.operation->sval[0][0]; */
-
-    /* if (!(op == 'w' || op == 'r')) { */
-    /*     printf("eeprom: invalid operation \'%c\' (must be 'r' or 'w')\n", op); */
-    /*     restore_eeprom_command_option_defaults(); */
-    /*     return 1; */
-    /* } */
-
-    /* const int value_specified = eeprom_args.value->count; */
-    /* if (value_specified && op == 'r') { */
-    /*     printf("eeprom: don't specify a value when performing a read operation\n"); */
-    /*     restore_eeprom_command_option_defaults(); */
-    /*     return 1; */
-    /* } */
-
-    /* const int address_specified = eeprom_args.address->count; */
-    
-    /* if (!address_specified) { */
-    /*     default_address++; */
-    /* } else { */
-    /*     // Check to see if the address is out of bounds: */
-    /*     int address = eeprom_args.address->ival[0]; */
-
-    /*     if (address < 0 || address >= OMAR_EEPROM_SIZE) { */
-    /*         printf("eeprom: address 0x%03x out of range (must be between 0x000 and 0x3ff)\n", address); */
-    /*         restore_eeprom_command_option_defaults(); */
-    /*         return 1; */
-    /*     } */
-
-    /*     // Remember this address for next time */
-    /*     default_address = eeprom_args.address->ival[0]; */
-    /* } */
-
-
-    /* printf("%s(): Operation = [%s], count = %d, address = 0x%03x, and value = 0x%02x\n", */
-    /*        __func__, */
-    /*        eeprom_args.operation->sval[0], */
-    /*        eeprom_args.count->ival[0], */
-    /*        default_address, */
-    /*        eeprom_args.value->ival[0]); */
-
-
-    /* uint8_t value = eeprom_args.value->ival[0]; */
-
-    /* int count = eeprom_args.count->ival[0]; */
-
-    /* bool multiple_write_values_specified = eeprom_args.values->count != 0; */
-    /* const char *write_values = NULL; */
-
-    /* if (multiple_write_values_specified) { */
-    /*     write_values = eeprom_args.values->sval[0]; */
-    /* } */
-
-    /* restore_eeprom_command_option_defaults(); */
-
-    /* if (op == 'r' && multiple_write_values_specified) { */
-    /*     printf("%s(): you cannot specify multiply write values when performing a read operation\n", __func__); */
-    /*     return 1; */
-    /* } */
-
-    /* if (op == 'r'  */
-    /*     &&  */
-    /*     (count + (default_address % OMAR_EEPROM_PAGE_SIZE)) > OMAR_EEPROM_PAGE_SIZE) { */
-
-    /*     printf("%s(): can't read past the edge of a page of eeprom memory (base address = 0x%03x, count = 0x%02x)\n", */
-    /*            __func__, default_address, count); */
-
-    /*     return 1; */
-
-    /* } */
-
-    /* if (op == 'r') { */
-    /*     uint8_t data[16] = {0}; */
-    /*     uint8_t *buf = (count <= 16 ? data : calloc(count, 1)); */
-    /*     int retval = 0;  */
-
-    /*     esp_err_t ret = s24c08_read((uint16_t )default_address, buf, count); */
-    /*     if (ret != ESP_OK) { */
-    /*         printf("%s(): s24c08_read() call returned an error - 0x%x\n", __func__, ret); */
-    /*         retval = 1; */
-    /*     } */
-
-    /*     if (count == 1) { */
-    /*         printf("%s(): read 0x%02x from eeprom location 0x%x\n", __func__, buf[0], default_address); */
-    /*     } else { */
-    /*         for (int i=0; i<count/16; i++) { */
-    /*             printf("0x%04x: ", default_address + i*16); */
-    /*             for (int j=0; i*16+j < count && j < 16; j++) { */
-    /*                 printf("0x%02x ", buf[i*16+j]); */
-    /*             } */
-    /*             printf("\n"); */
-    /*         } */
-
-            
-    /*     } */
-
-    /*     // Clean up if you have to */
-    /*     if (buf != data) { */
-    /*         free(buf); */
-    /*     } */
-
-    /*     return retval; */
-
-    /* } */
-
-    /* // It's a write operation: */
-
-    /* if (op == 'w' && !address_specified) { */
-    /*     printf("%s(): must specify the address when writing data\n", __func__); */
-    /*     return 0; */
-    /* } */
-
-    /* if (multiple_write_values_specified) { */
-
-    /*     if (!valid_hexadecimal_value(write_values)) { */
-    /*         return 1; */
-    /*     } */
-
-    /*     uint16_t xfer_size = strlen(write_values)/2; */
-
-    /*     if (xfer_size > OMAR_EEPROM_PAGE_SIZE) { */
-    /*         printf("%s(): attempting to write %d bytes, more than the max xfer of %d bytes\n",  */
-    /*                __func__,  */
-    /*                xfer_size,  */
-    /*                OMAR_EEPROM_PAGE_SIZE); */
-
-    /*         return 1; */
-    /*     } */
-
-
-    /*     printf("%s(): attempting to write multiple values to a location: [%s]\n", __func__, write_values); */
-
-    /*     // Convert the string of hex digits into actual hex values: */
-    /*     for (int i=0; i<xfer_size; i++) { */
-    /*         const char digit[] = {write_values[2*i], write_values[2*i+1]}; */
-
-    /*         if (digit[0] == '0' && digit[1] == '0') { */
-    /*             // strtoul() returns 0 if no conversion could */
-    /*             // be performed */
-    /*             write_buffer[i] = 0; */
-    /*             continue; */
-    /*         } */
-
-    /*         unsigned long value = strtoul(digit, NULL, 16); */
-    /*         if (value == 0) { */
-    /*             printf("%s(): strtoul() failed to convert [%s] to an integer\n", __func__, digit); */
-    /*             return 1; */
-    /*         } */
-
-    /*         write_buffer[i] = (uint8_t ) value; */
-
-    /*     } */
-        
-
-    /*     printf("%s(): calling s24c08_write(0x%03x, 0x%02x, %d)\n", */
-    /*            __func__, default_address, write_buffer[0], xfer_size); */
-
-    /*     if (s24c08_write(default_address, write_buffer, xfer_size) != ESP_OK) { */
-    /*         return 1; */
-    /*     } */
-        
-    /* } else { */
-
-    /*     esp_err_t ret = s24c08_write(default_address, &value, 1); */
-    /*     if (ret != ESP_OK) { */
-    /*         printf("%s(): s24c08_write() call returned an error - 0x%x\n", __func__, ret); */
-    /*         return 1; */
-    /*     } */
-
-    /*     printf("%s(): Wrote 0x%02x to eeprom location 0x%x\n", __func__, value, default_address); */
-    /* } */
-
-    return 0;
 }
 
 static void register_eeprom()
