@@ -22,9 +22,7 @@ static void bit_bang_i2c_start(void);
 static void bit_bang_i2c_stop(void);
 static void bit_bang_i2c_clock(uint8_t cycles);
 static esp_err_t s24c08_read_nbytes(s24c08_eeprom_page_t page, uint8_t *data, uint16_t count);
-/* static esp_err_t s24c08_write_nbytes(uint16_t address, uint8_t *data, uint16_t count); */
 
-#define I2C_BIT_BANG_DELAY          (1/portTICK_PERIOD_MS)
 
 static void bit_bang_i2c_clock(uint8_t cycles)
 {
@@ -230,7 +228,7 @@ static esp_err_t s24c08_write_page(uint16_t address, uint8_t *data, uint16_t cou
         if (bytes_to_write > 0) {
             // Pause for a bit to give the s24c08 eeprom
             // time to complete the write operation..
-            vTaskDelay(1000/portTICK_PERIOD_MS);
+            vTaskDelay(S24C08_WRITE_DELAY);
         }
         
     }
@@ -268,7 +266,7 @@ static esp_err_t s24c08_write_page(uint16_t address, uint8_t *data, uint16_t cou
         if (bytes_to_write > 0) {
             // Pause for a bit to give the s24c08 eeprom
             // time to complete the write operation..
-            vTaskDelay(1000/portTICK_PERIOD_MS);
+            vTaskDelay(S24C08_WRITE_DELAY);
 
         }
 
