@@ -131,12 +131,6 @@ static esp_err_t s24c08_write_up_to_16_bytes(s24c08_eeprom_page_t page, uint8_t 
 {
     esp_err_t status;
 
-    printf("%s(0x%02x, {0x%02x, 0x%02x, 0x%02x, 0x%02x}, %d)\n", 
-           __func__, 
-           page, 
-           data[0], data[1], data[2], data[3], 
-           count);
-
     if ((status=i2c_tx(page, data, count)) != ESP_OK) {
         printf("%s(): failed to write the %d bytes of data to address 0x%02x\n",
                __func__,
@@ -178,11 +172,11 @@ static esp_err_t s24c08_write_page(uint16_t address, uint8_t *data, uint16_t cou
         return ESP_FAIL;
     }
 
-    printf("%s(): Writing %d bytes to address 0x%03x (page = 0x%02x)\n", 
-           __func__,
-           count,
-           address,
-           page);
+    /* printf("%s(): Writing %d bytes to address 0x%03x (page = 0x%02x)\n",  */
+    /*        __func__, */
+    /*        count, */
+    /*        address, */
+    /*        page); */
 
     // You'll never write more than 16 bytes of data at once,
     // so including the initial address byte, your "write_buffer"
@@ -303,7 +297,7 @@ esp_err_t s24c08_write(uint16_t address, uint8_t *data, uint16_t count)
     uint8_t pages_spanned = 
         1   // "pages_spanned" is at least 1 (even a single-byte write goes to some page)..
         + 
-        ((address + count)/OMAR_EEPROM_PAGE_SIZE) - (address/OMAR_EEPROM_PAGE_SIZE);
+        ((count % OMAR_EEPROM_PAGE_SIZE)/OMAR_EEPROM_PAGE_SIZE);
 
     uint16_t bytes_to_write_to_this_page = OMAR_EEPROM_PAGE_SIZE - (address % OMAR_EEPROM_PAGE_SIZE);
     bytes_to_write_to_this_page = (bytes_to_write_to_this_page > count ? count : bytes_to_write_to_this_page);
@@ -312,15 +306,16 @@ esp_err_t s24c08_write(uint16_t address, uint8_t *data, uint16_t count)
     uint16_t final_address = address + count;
     uint8_t *current_data_ptr = data;
 
-    printf("%s(): Writing %d bytes to address 0x%04x, spanning %d different pages\n",__func__, count, address, pages_spanned);
+    /* printf("%s(): Writing %d bytes to address 0x%04x, spanning %d different pages\n",__func__, count, address, pages_spanned); */
+
     for (int i=0; i<pages_spanned; i++) {
 
-        printf("%s(): Writing to eeprom page %d of %d (current_address = 0x%04x, final_address = 0x%04x)\n", 
-               __func__,
-               i,
-               pages_spanned,
-               current_address,
-               final_address);
+        /* printf("%s(): Writing to eeprom page %d of %d (current_address = 0x%04x, final_address = 0x%04x)\n",  */
+        /*        __func__, */
+        /*        i, */
+        /*        pages_spanned, */
+        /*        current_address, */
+        /*        final_address); */
 
         if (ESP_OK != 
             s24c08_write_page(
