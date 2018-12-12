@@ -11,6 +11,9 @@
 #include "argtable3/argtable3.h"
 #define MAX_ARGTABLE3_STRING_ARG_LENGTH             (224)
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #include "esp_log.h"
 #include "esp_console.h"
 #include "hw_setup.h"
@@ -172,20 +175,13 @@ static struct {
     struct arg_lit *read;       // read 
     struct arg_lit *dump;       // dump all 1024 bytes of eeprom memory
     struct arg_lit *erase;      // set all 1024 bytes of eeprom memory to 0xff
+    struct arg_lit *blast;      // set all 1024 bytes of eeprom memory to the specified value
     struct arg_int *address;    // Ranges from 0x000 to 0x400
     struct arg_int *count;      // number of bytes to read 
     struct arg_int *value;      // (only for "write") Value to be written
     struct arg_str *values;     // a string of hex values to be written
     struct arg_end *end;
 } eeprom_args;
-
-static void restore_eeprom_command_option_defaults(void)
-{
-    /* eeprom_args.count->ival[0] = 1; */
-    /* eeprom_args.address->ival[0] = 0; */
-    /* eeprom_args.value->ival[0] = 0xff; */
-    /* eeprom_args.values->sval[0] = "ff"; */
-}
 
 static bool valid_hexadecimal_value(const char *arg)
 {
@@ -265,7 +261,6 @@ static int access_eeprom(int argc, char** argv)
     int nerrors = arg_parse(argc, argv, (void**) &eeprom_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, eeprom_args.end, argv[0]);
-        restore_eeprom_command_option_defaults();
         return 1;
     }
 
@@ -298,6 +293,55 @@ static int access_eeprom(int argc, char** argv)
         goto finish;
     }
 
+
+    if (eeprom_args.erase->count == 1 && eeprom_args.blast->count == 1) {
+        printf("%s(): cannot specify both an \"erase\" and a \"blast\" operation - pick one\n", __func__);
+        return 1;
+    }
+
+    if (eeprom_args.erase->count == 1 || eeprom_args.blast->count == 1) {
+        uint8_t *buf = eeprom_read_buf;
+        uint8_t write_value = 0;
+        count = OMAR_EEPROM_SIZE;
+        address = 0;
+
+        if (eeprom_args.blast->count == 1 && eeprom_args.value->count == 0) {
+            printf("%s(): you must specify a \"value\" to perform a \"blast\" operation\n", __func__);
+            return 1;
+        }
+
+        if (eeprom_args.blast->count == 1) {
+            write_value = eeprom_args.value->ival[0];
+        }
+
+        memset(buf, write_value, OMAR_EEPROM_SIZE);
+
+#if defined(MEASURE_EEPROM_WRITE_TIME)
+        uint32_t startTimeStamp, finishTimeStamp;
+        int startTime, finishTime;
+        startTime = xTaskGetTickCount();
+        startTimeStamp = esp_log_timestamp();
+#endif
+
+        esp_err_t ret = s24c08_write(0, buf, count);
+
+        if (ret != ESP_OK) {
+            printf("%s(): s24c08_write() call returned an error - 0x%x\n", __func__, ret);
+            return 1;
+        }
+
+#if defined(MEASURE_EEPROM_WRITE_TIME)
+        finishTime = xTaskGetTickCount();
+        finishTimeStamp = esp_log_timestamp();
+        printf("%s(): Erasing all 1024 bytes of eeprom took %d ticks (that's about %d milliseconds, and %d in esp_log_timestamp() terms)\n", 
+               __func__, 
+               finishTime - startTime,
+               finishTime - startTime,
+               finishTimeStamp - startTimeStamp);
+#endif
+
+        goto finish;
+    }
 
     if (eeprom_args.erase->count == 1) {
         uint8_t *buf = eeprom_read_buf;
@@ -592,6 +636,11 @@ static void register_eeprom()
         "erase", 
         "Set all 1024 bytes of eeprom memory to 0xff");
 
+    eeprom_args.blast = arg_lit0(
+        "b", 
+        "blast", 
+        "Set all 1024 bytes of eeprom memory to --value");
+
     eeprom_args.count = arg_int0(
         "c",
         "count", 
@@ -617,8 +666,6 @@ static void register_eeprom()
         "A string of hexadecimal digits to be written");
 
     eeprom_args.end = arg_end(8);
-
-    /* restore_eeprom_command_option_defaults(); */
 
     const esp_console_cmd_t eeprom_cmd = {
         .command = "eeprom",
