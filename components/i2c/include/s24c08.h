@@ -6,6 +6,13 @@
 #pragma once
 
 /*
+ * Comment out the line #defining S24C08_VERBOSE
+ * to squelch a tone of console spew from the
+ * low-level routines in s24c08.c
+ */
+#define S24C08_VERBOSE
+
+/*
  * EEPROM memory is organized into four 256-byte blocks,
  * each referenced via a different I2C address.
  *
