@@ -96,21 +96,21 @@ typedef enum {
  * So - what if we just wait? It turns out that waiting with a
  * "vTaskDelay(1/portTICK_PERIOD_MS)" is too short (the i2c
  * driver returns an error, presumably because the s24c08 doesn't
- * ACK when expected). But waiting "vTaskDelay(10/portTICK_PERIOD_MS)"
- * seems rock solid, and adding this 114 useconds to each 16-byte
+ * ACK when expected). But waiting "vTaskDelay(20/portTICK_PERIOD_MS)"
+ * seems rock solid, and adding this 228 useconds to each 16-byte
  * page write brings the per-byte throughput down from the "raw"
- * speed of 25.5 usec/byte, to 32.6 usec/byte. 
+ * speed of 25.5 usec/byte, to about 40 usec/byte. 
  *
  * This means, if we were to write the entire 1KByte s24c08 eeprom
- * memory, it would take about 33.4 milliseconds. Given the way
+ * memory, it would take about 41 milliseconds. Given the way
  * we plan to use this memory, that seems acceptable. 
  * 
  * Constant S24C08_WRITE_DELAY defines how long we wait between
- * page write operations (10/portTICK_PERIOD_MS translates to
- * about 114 usec):
+ * page write operations (20/portTICK_PERIOD_MS translates to
+ * about 228 usec):
  */
 
-#define S24C08_WRITE_DELAY          (10/portTICK_PERIOD_MS)
+#define S24C08_WRITE_DELAY          (20/portTICK_PERIOD_MS)
 
 // Functions:
 void s24c08_init(void);
