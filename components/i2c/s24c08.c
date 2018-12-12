@@ -131,6 +131,14 @@ static esp_err_t s24c08_write_up_to_16_bytes(s24c08_eeprom_page_t page, uint8_t 
 {
     esp_err_t status;
 
+#if defined(S24C08_VERBOSE)
+    printf("%s(0x%02x, {0x%02x, 0x%02x, 0x%02x, 0x%02x}, %d)\n", 
+           __func__, 
+           page, 
+           data[0], data[1], data[2], data[3], 
+           count);
+#endif
+
     if ((status=i2c_tx(page, data, count)) != ESP_OK) {
         printf("%s(): failed to write the %d bytes of data to address 0x%02x\n",
                __func__,
@@ -172,11 +180,13 @@ static esp_err_t s24c08_write_page(uint16_t address, uint8_t *data, uint16_t cou
         return ESP_FAIL;
     }
 
-    /* printf("%s(): Writing %d bytes to address 0x%03x (page = 0x%02x)\n",  */
-    /*        __func__, */
-    /*        count, */
-    /*        address, */
-    /*        page); */
+#if defined(S24C08_VERBOSE)
+    printf("%s(): Writing %d bytes to address 0x%03x (page = 0x%02x)\n",
+           __func__,
+           count,
+           address,
+           page);
+#endif
 
     // You'll never write more than 16 bytes of data at once,
     // so including the initial address byte, your "write_buffer"
@@ -202,10 +212,12 @@ static esp_err_t s24c08_write_page(uint16_t address, uint8_t *data, uint16_t cou
         write_buffer[0] = current_address;
         memcpy(&write_buffer[1], data, chunk_size);
 
-        printf("%s(): writing an odd number of bytes to roll up to next 16-byte boundary  - writing %d bytes to address 0x%03x\n", 
-               __func__, 
+#if defined(S24C08_VERBOSE)
+        printf("%s(): writing an odd number of bytes to roll up to next 16-byte boundary  - writing %d bytes to address 0x%03x\n",
+               __func__,
                chunk_size,
                current_address);
+#endif
 
         status = s24c08_write_up_to_16_bytes(page, write_buffer, chunk_size+1);
         if (status != ESP_OK) {
@@ -294,10 +306,14 @@ esp_err_t s24c08_write(uint16_t address, uint8_t *data, uint16_t count)
         return ESP_FAIL;
     }
 
-    uint8_t pages_spanned = 
-        1   // "pages_spanned" is at least 1 (even a single-byte write goes to some page)..
-        + 
-        ((count % OMAR_EEPROM_PAGE_SIZE)/OMAR_EEPROM_PAGE_SIZE);
+    uint16_t pages_spanned =
+        1 // Even a one-byte write is on a page somewhere.
+        +
+        (   // Add in extra page-spans for each time you cross a page boundary:
+            ((address + count)/OMAR_EEPROM_PAGE_SIZE) 
+            - 
+            (address/OMAR_EEPROM_PAGE_SIZE)
+        );
 
     uint16_t bytes_to_write_to_this_page = OMAR_EEPROM_PAGE_SIZE - (address % OMAR_EEPROM_PAGE_SIZE);
     bytes_to_write_to_this_page = (bytes_to_write_to_this_page > count ? count : bytes_to_write_to_this_page);
@@ -306,16 +322,24 @@ esp_err_t s24c08_write(uint16_t address, uint8_t *data, uint16_t count)
     uint16_t final_address = address + count;
     uint8_t *current_data_ptr = data;
 
-    /* printf("%s(): Writing %d bytes to address 0x%04x, spanning %d different pages\n",__func__, count, address, pages_spanned); */
+#if defined(S24C08_VERBOSE)
+    printf("%s(): Writing %d bytes to address 0x%04x, spanning %d different pages\n",
+           __func__, 
+           count, 
+           address, 
+           pages_spanned);
+#endif
 
     for (int i=0; i<pages_spanned; i++) {
 
-        /* printf("%s(): Writing to eeprom page %d of %d (current_address = 0x%04x, final_address = 0x%04x)\n",  */
-        /*        __func__, */
-        /*        i, */
-        /*        pages_spanned, */
-        /*        current_address, */
-        /*        final_address); */
+#if defined(S24C08_VERBOSE)
+        printf("%s(): Writing to eeprom page %d of %d (current_address = 0x%04x, final_address = 0x%04x)\n",
+               __func__,
+               i+1,
+               pages_spanned,
+               current_address,
+               final_address);
+#endif
 
         if (ESP_OK != 
             s24c08_write_page(
