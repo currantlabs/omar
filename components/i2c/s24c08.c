@@ -626,7 +626,7 @@ static s24c08_eeprom_page_t map_eeprom_addr_to_device_addr(uint16_t addr)
         return S24C08C_I2C_PAGE1;
     } else if (addr <= OMAR_EEPROM_BLOCK2_MAXADDR) {
         return S24C08C_I2C_PAGE2;
-    } else if (addr <= OMAR_EEPROM_BLOCK2_MAXADDR) {
+    } else if (addr <= OMAR_EEPROM_BLOCK3_MAXADDR) {
         return S24C08C_I2C_PAGE3;
     } else {
         return S24C08C_I2C_PAGE_INVALID;
