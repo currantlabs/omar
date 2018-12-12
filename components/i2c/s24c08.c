@@ -13,9 +13,6 @@
 #include "s24c08.h"
 #include "esp_err.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
 #define ACK_CHECK_DIS                      0x0              /*!< I2C master will not check ack from slave */
 
 static bool m_initialized = true;
@@ -136,7 +133,11 @@ static esp_err_t s24c08_write_up_to_16_bytes(s24c08_eeprom_page_t page, uint8_t 
 {
     esp_err_t status;
 
-    printf("%s(0x%02x, 0x%02x, %d)\n", __func__, page, data[0], count);
+    printf("%s(0x%02x, {0x%02x, 0x%02x, 0x%02x, 0x%02x}, %d)\n", 
+           __func__, 
+           page, 
+           data[0], data[1], data[2], data[3], 
+           count);
 
     if ((status=i2c_tx(page, data, count)) != ESP_OK) {
         printf("%s(): failed to write the %d bytes of data to address 0x%02x\n",
@@ -226,6 +227,12 @@ static esp_err_t s24c08_write_page(uint16_t address, uint8_t *data, uint16_t cou
         current_address += chunk_size;
         bytes_to_write -= chunk_size;
 
+        if (bytes_to_write > 0) {
+            // Pause for a bit to give the s24c08 eeprom
+            // time to complete the write operation..
+            vTaskDelay(1000/portTICK_PERIOD_MS);
+        }
+        
     }
 
     // Consistency check:
