@@ -570,15 +570,20 @@ esp_err_t s24c08_read(uint16_t address, uint8_t *data, uint16_t count)
     uint16_t current_address = address;
     uint16_t final_address = address + count;
 
+#if defined(S24C08_VERBOSE)
     printf("%s(): Reading %d bytes from address 0x%04x\n",__func__, count, address);
+#endif
+
     for (int i=0; i<pages_spanned; i++) {
 
+#if defined(S24C08_VERBOSE)
         printf("%s(): Reading from eeprom page %d of %d (current_address = 0x%04x, final_address = 0x%04x)\n", 
                __func__,
                i,
                pages_spanned,
                current_address,
                final_address);
+#endif
 
         s24c08_eeprom_page_t page = map_eeprom_addr_to_device_addr(current_address);
         if (page == S24C08C_I2C_PAGE_INVALID) {
