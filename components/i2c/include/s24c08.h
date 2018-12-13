@@ -10,7 +10,7 @@
  * to squelch a tone of console spew from the
  * low-level routines in s24c08.c
  */
-#define S24C08_VERBOSE
+//#define S24C08_VERBOSE
 
 /*
  * EEPROM memory is organized into four 256-byte blocks,

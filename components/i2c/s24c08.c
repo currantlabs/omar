@@ -285,6 +285,55 @@ static esp_err_t s24c08_write_page(uint16_t address, uint8_t *data, uint16_t cou
 }
 
 /*
+ * number_of_pages_spanned() figures out how many distinct pages
+ * a given read or write operation will access. 
+ *
+ * "pages" here is used in the sense of the 4 distinct regions
+ * in the s24c08 eeprom (each OMAR_EEPROM_PAGE_SIZE or 256 bytes
+ * in size) that need go be addressed via distinct i2c device
+ * numbers. 
+ * 
+ * Any read/write (even of a single byte) accesses at least
+ * one such page. Depending on the number of bytes, and the
+ * address at which the read/write access begins, the number
+ * of distinct pages affected will grow.
+ *
+ * Suppose you want to read 250 bytes. If your access begins
+ * at an address less than or equal to 5, all 250 bytes reside
+ * on the same page ("page 0," the page corresponding to i2c
+ * device address S24C08C_I2C_PAGE0 or 0x50). 
+ *
+ * But if instead you need to access 250 bytes starting at
+ * address 80, then you'll cross the page boundary at 0x100
+ * and the access will end up touching 2 pages.
+ *
+ * number_of_pages_spanned() simply consolidates this in one place..
+ *
+ */
+static uint16_t number_of_pages_spanned(uint16_t address, uint16_t count)
+{
+    uint16_t pages =
+        1 // Even a one-byte write is on a page somewhere.
+        +
+        (   // Add in extra page-spans for each time you cross a page boundary:
+            ((address + count)/OMAR_EEPROM_PAGE_SIZE) 
+            - 
+            (address/OMAR_EEPROM_PAGE_SIZE)
+        );
+
+
+	/*
+	 * In cases where the access touches the last byte in eeprom,
+	 * the preceding formula can yield 5 - catch that case
+	 * and fix it (the max number of pages spanned is 4):
+	 */
+    pages = (pages > 4) ? 4 : pages;
+
+
+    return pages;
+}
+
+/*
  * s24c08_write() writes 'count' bytes to the specified
  * address (0x000 - 0x3ff) in EEPROM memory.
  *
@@ -306,14 +355,7 @@ esp_err_t s24c08_write(uint16_t address, uint8_t *data, uint16_t count)
         return ESP_FAIL;
     }
 
-    uint16_t pages_spanned =
-        1 // Even a one-byte write is on a page somewhere.
-        +
-        (   // Add in extra page-spans for each time you cross a page boundary:
-            ((address + count)/OMAR_EEPROM_PAGE_SIZE) 
-            - 
-            (address/OMAR_EEPROM_PAGE_SIZE)
-        );
+    uint16_t pages_spanned = number_of_pages_spanned(address, count);
 
     uint16_t bytes_to_write_to_this_page = OMAR_EEPROM_PAGE_SIZE - (address % OMAR_EEPROM_PAGE_SIZE);
     bytes_to_write_to_this_page = (bytes_to_write_to_this_page > count ? count : bytes_to_write_to_this_page);
@@ -526,7 +568,7 @@ esp_err_t s24c08_read(uint16_t address, uint8_t *data, uint16_t count)
     // out how many eeprom pages are spanned, and thus how many
     // invocations are required:
 
-    uint8_t pages_spanned = 1 + ((count % OMAR_EEPROM_PAGE_SIZE)/OMAR_EEPROM_PAGE_SIZE);
+    uint16_t pages_spanned = number_of_pages_spanned(address, count);
     uint16_t bytes_to_read_from_this_page = OMAR_EEPROM_PAGE_SIZE - (address % OMAR_EEPROM_PAGE_SIZE);
     uint16_t current_address = address;
     uint16_t final_address = address + count;
