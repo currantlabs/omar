@@ -139,6 +139,10 @@ static esp_err_t s24c08_write_up_to_16_bytes(s24c08_eeprom_page_t page, uint8_t 
            count);
 #endif
 
+    if (count == 0) {
+        return ESP_OK;
+    }
+
     if ((status=i2c_tx(page, data, count)) != ESP_OK) {
         printf("%s(): failed to write the %d bytes of data to address 0x%02x\n",
                __func__,
@@ -147,6 +151,11 @@ static esp_err_t s24c08_write_up_to_16_bytes(s24c08_eeprom_page_t page, uint8_t 
 
         return status;
     }
+
+    // Pause for a bit to give the s24c08 eeprom
+    // time to complete the write operation..
+    vTaskDelay(S24C08_WRITE_DELAY);
+    
 
     return ESP_OK;
 }
@@ -231,11 +240,6 @@ static esp_err_t s24c08_write_page(uint16_t address, uint8_t *data, uint16_t cou
         current_address += chunk_size;
         bytes_to_write -= chunk_size;
 
-        if (bytes_to_write > 0) {
-            // Pause for a bit to give the s24c08 eeprom
-            // time to complete the write operation..
-            vTaskDelay(S24C08_WRITE_DELAY);
-        }
         
     }
 
@@ -269,15 +273,8 @@ static esp_err_t s24c08_write_page(uint16_t address, uint8_t *data, uint16_t cou
         current_address += chunk_size;
         bytes_to_write -= chunk_size;
 
-        if (bytes_to_write > 0) {
-            // Pause for a bit to give the s24c08 eeprom
-            // time to complete the write operation..
-            vTaskDelay(S24C08_WRITE_DELAY);
-
-        }
 
     }
-
 
     return ESP_OK;
 
@@ -322,11 +319,11 @@ static uint16_t number_of_pages_spanned(uint16_t address, uint16_t count)
         );
 
 
-	/*
-	 * In cases where the access touches the last byte in eeprom,
-	 * the preceding formula can yield 5 - catch that case
-	 * and fix it (the max number of pages spanned is 4):
-	 */
+    /*
+     * In cases where the access touches the last byte in eeprom,
+     * the preceding formula can yield 5 - catch that case
+     * and fix it (the max number of pages spanned is 4):
+     */
     pages = (pages > 4) ? 4 : pages;
 
 
