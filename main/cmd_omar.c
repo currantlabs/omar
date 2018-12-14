@@ -271,12 +271,25 @@ static int access_eeprom(int argc, char** argv)
         count = OMAR_EEPROM_SIZE;
         address = 0;
 
+#if defined(MEASURE_EEPROM_WRITE_TIME)
+        int startTime, finishTime;
+        startTime = xTaskGetTickCount();
+#endif
+
         esp_err_t ret = s24c08_read((uint16_t )0, buf, count);
 
         if (ret != ESP_OK) {
             printf("%s(): s24c08_read() call returned an error - 0x%x\n", __func__, ret);
             return 1;
         }
+
+#if defined(MEASURE_EEPROM_WRITE_TIME)
+        finishTime = xTaskGetTickCount();
+        printf("%s(): Reading all 1024 bytes of eeprom took %d ticks (that's about %d milliseconds, since 1 tick is 10 milliseconds)\n", 
+               __func__, 
+               finishTime - startTime,
+               (finishTime - startTime) * 10);
+#endif
 
         for (int i=0; i<=count/16; i++) {
             if (i*16 == count) {
@@ -316,7 +329,6 @@ static int access_eeprom(int argc, char** argv)
 
         memset(buf, write_value, OMAR_EEPROM_SIZE);
 
-#define MEASURE_EEPROM_WRITE_TIME
 #if defined(MEASURE_EEPROM_WRITE_TIME)
         int startTime, finishTime;
         startTime = xTaskGetTickCount();

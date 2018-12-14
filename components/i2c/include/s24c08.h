@@ -13,6 +13,15 @@
 //#define S24C08_VERBOSE
 
 /*
+ * When enabled, MEASURE_EEPROM_WRITE_TIME causes
+ * timing information to be displayed when console
+ * commands that read or write the entire contents
+ * of eeprom are invoked. 
+ * 
+ */
+#define MEASURE_EEPROM_WRITE_TIME
+
+/*
  * EEPROM memory is organized into four 256-byte blocks,
  * each referenced via a different I2C address.
  *
