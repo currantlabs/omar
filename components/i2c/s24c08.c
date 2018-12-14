@@ -13,16 +13,17 @@
 #include "s24c08.h"
 #include "esp_err.h"
 
-#define ACK_CHECK_DIS                      0x0              /*!< I2C master will not check ack from slave */
+static bool m_initialized = false;
 
-static bool m_initialized = true;
 static s24c08_eeprom_page_t map_eeprom_addr_to_device_addr(uint16_t addr);
 static void s24c08_reset(void);
 static void bit_bang_i2c_start(void);
 static void bit_bang_i2c_stop(void);
 static void bit_bang_i2c_clock(uint8_t cycles);
+static uint16_t number_of_pages_spanned(uint16_t address, uint16_t count);
 static esp_err_t s24c08_read_nbytes(s24c08_eeprom_page_t page, uint8_t *data, uint16_t count);
-
+static esp_err_t s24c08_write_page(uint16_t address, uint8_t *data, uint16_t count);
+static esp_err_t s24c08_write_up_to_16_bytes(s24c08_eeprom_page_t page, uint8_t *data, uint16_t count);
 
 static void bit_bang_i2c_clock(uint8_t cycles)
 {
@@ -124,8 +125,28 @@ static void s24c08_reset(void)
 void s24c08_init(void)
 {
     s24c08_reset();
-    printf("%s(): initialized\n", __func__);
+    m_initialized = true;
 }
+
+/*
+ * s24c08_write_up_to_16_bytes() takes advantage of the s24c08 eeprom's
+ * optimized "page write" mode, which allows you to write as many as
+ * 16 bytes in a single i2c transaction.
+ *
+ * In "page write" mode the s24c08's internal write address register
+ * only uses the least-significant 4 bits and so you must pay attention
+ * to where you're writing wrt 16-byte address boundaries. If you try
+ * to write 16 bytes from an address of the form Nx16 + 7, the first
+ * 9 bytes will go were you expect but the final 7 bytes will wrap
+ * around behind you, starting at address Nx16.
+ *
+ * s24c08_write_page() takes the alignment of the write data with
+ * respect to multiple-of-16 byte boundaries, and is careful to call
+ * s24c08_write_up_to_16_bytes() so as to avoid this wrap-around 
+ * issue - breaking down the write data as much as possible into
+ * 16-byte chunks aligned with multiple of 16 addresses.
+ *
+ */
 
 static esp_err_t s24c08_write_up_to_16_bytes(s24c08_eeprom_page_t page, uint8_t *data, uint16_t count)
 {
@@ -407,137 +428,10 @@ esp_err_t s24c08_write(uint16_t address, uint8_t *data, uint16_t count)
 
     }
 
-
     return ESP_OK;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    /* // Calculate the offset within the page to the desired location: */
-    /* uint8_t in_page_addr = (uint8_t )(address % OMAR_EEPROM_PAGE_SIZE); */
-
-    /* if (count + in_page_addr > OMAR_EEPROM_PAGE_SIZE) { */
-    /*     printf("%s(): cannot read across page boundaries just yet (offset in page = 0x%02x, count = 0x%02x\n", */
-    /*            __func__, in_page_addr, count); */
-    /*     return ESP_FAIL; */
-    /* } */
-
-    /* /\* /\\* *\/ */
-    /* /\*  * Write the data to the s24c08 eeprom according to the procedure *\/ */
-    /* /\*  * defined in section "6.1 Byte Write" of the datasheet: send a *\/ */
-    /* /\*  * byte indicating the offset within the page, followed by the *\/ */
-    /* /\*  * byte you wish to write to eeprom memory. *\/ */
-    /* /\*  *\\/ *\/ */
-    /* /\* uint8_t write_pkt[] = {in_page_addr, *data}; *\/ */
-    /* /\* esp_err_t ret = i2c_tx(page, write_pkt, 2); *\/ */
-    /* /\* if (ret != ESP_OK) { *\/ */
-    /* /\*     printf("%s(): failed to setup the address to read from\n", __func__); *\/ */
-    /* /\*     return ESP_FAIL; *\/ */
-    /* /\* } *\/ */
-
-    /* /\* return ESP_OK; *\/ */
-
-
-    /* s24c08_eeprom_page_t page = map_eeprom_addr_to_device_addr(address); */
-    /* if (page == S24C08C_I2C_PAGE_INVALID) { */
-    /*     printf("%s(): address is out of range - 0x%x", __func__, address); */
-    /*     return ESP_FAIL; */
-    /* } */
-
-    /* uint8_t write_buf[32] = {in_page_addr, 0}; */
-    /* memcpy(&write_buf[1], data, count); */
-    /* return s24c08_write_up_to_16_bytes(page, write_buf, count+1); */
-
 }
 
-/*
- * s24c08_write_nbytes() writes data o the s24c08 EEPROM chip
- * in bursts of up to 16 bytes per i2c operation (see the s24c08
- * datasheet, section "6.2 Page write").
- * 
- */
-/* static esp_err_t s24c08_write_nbytes(uint16_t address, uint8_t *data, uint16_t count) */
-/* { */
-/*  esp_err_t status = ESP_OK; */
-/*     s24c08_eeprom_page_t page = map_eeprom_addr_to_device_addr(address); */
-/*     if (page == S24C08C_I2C_PAGE_INVALID) { */
-/*         printf("%s(): address is out of range - 0x%x", __func__, address); */
-/*         return ESP_FAIL; */
-/*     } */
-/*  uint8_t write_pkt[17] = {0};    // allow for 1 address byte + at most 16 data bytes */
-/*  uint8_t *write_buf = &write_pkt[1]; */
-/*  uint16_t offset = 0; */
-
     
-
-
-
-
-
-/*  /\* while (count > 0) { *\/ */
-/*  /\*     uint8_t xfersize = (count > MAX_PAGE_WRITE ? MAX_PAGE_WRITE : count); *\/ */
-/*  /\*     uint8_t *dataptr = &data[offset]; *\/ */
-
-/*  /\*     write_pkt[0] = address + offset; *\/ */
-/*  /\*     memcpy(write_buf, dataptr, xfersize); *\/ */
-
-/*  /\*     printf("%s(): about to call i2c_tx(0x%02x, 0x%02x, %d) [count = %d, offset = %d, xfersize = %d]\n",  *\/ */
-/*  /\*            __func__, page, write_pkt[0], xfersize + 1, count, offset, xfersize); *\/ */
-
-/*  /\*     // Remember to write 'xfersize' data bytes, plus 1 for the address byte: *\/ */
-/*  /\*     if ((status=i2c_tx(page, write_pkt, xfersize + 1)) != ESP_OK) { *\/ */
-/*  /\*         printf("%s(): failed to write the %d bytes of data to address 0x%02x\n", *\/ */
-/*  /\*                __func__, *\/ */
-/*  /\*                xfersize, *\/ */
-/*  /\*                write_pkt[0]); *\/ */
-
-/*  /\*         return status; *\/ */
-/*  /\*     } *\/ */
-
-/*  /\*     // Give the s24c08 time to finish writing the data: *\/ */
-/*     /\*     vTaskDelay(I2C_BIT_BANG_DELAY);  // about 10 microseconds *\/ */
-
-/*  /\*     printf("%s(): bottom of loop, just before subtracting %d (xfersize): offset = %d and count = %d\n", __func__, xfersize, offset, count); *\/ */
-
-/*  /\*     // update and continue: *\/ */
-/*  /\*     offset = offset + xfersize; *\/ */
-/*  /\*     count = count - xfersize; *\/ */
-
-/*  /\*     printf("%s(): bottom of loop, offset = %d and count = %d\n", __func__, offset, count); *\/ */
-
-/*  /\*     if (count == 0) { *\/ */
-/*  /\*       printf("%s(): bottom of loop, count is 0, escaping!\n", __func__); *\/ */
-/*  /\*       return ESP_OK; *\/ */
-/*  /\*     } *\/ */
-
-/*  /\* } *\/ */
-
-/*  return ESP_OK; */
-
-/* } */
-
 /*
  * s24c08_read() reads 'count' bytes from the specified
  * address (0x000 - 0x3ff) in EEPROM memory.
@@ -680,6 +574,8 @@ static esp_err_t s24c08_read_nbytes(s24c08_eeprom_page_t page, uint8_t *data, ui
  * of the location in memory being accessed.
  *
  * map_eeprom_addr_to_device_addr() takes an address
+ * in the range 0-0x3ff and maps it onto the 
+ * corresponding s24c08 block's i2c device address.
  */
 static s24c08_eeprom_page_t map_eeprom_addr_to_device_addr(uint16_t addr)
 {

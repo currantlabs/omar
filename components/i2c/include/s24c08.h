@@ -103,7 +103,12 @@ typedef enum {
  * So - what if we just wait? It turns out that waiting with a
  * "vTaskDelay(1/portTICK_PERIOD_MS)" is too short (the i2c
  * driver returns an error, presumably because the s24c08 doesn't
- * ACK when expected). But waiting "vTaskDelay(20/portTICK_PERIOD_MS)"
+ * ACK when expected). 
+ *
+ * Waiting "vTaskDelay(10/portTICK_PERIOD_MS)" is a bit better,
+ * but writes still fail about 15% of the time.
+ *
+ * But waiting "vTaskDelay(20/portTICK_PERIOD_MS)"
  * seems rock solid, and adding this 228 useconds to each 16-byte
  * page write brings the per-byte throughput down from the "raw"
  * speed of 25.5 usec/byte, to about 40 usec/byte. 
@@ -120,8 +125,8 @@ typedef enum {
 #define S24C08_WRITE_DELAY          (20/portTICK_PERIOD_MS)
 
 // Functions:
-void s24c08_init(void);
-esp_err_t s24c08_read(uint16_t address, uint8_t *data, uint16_t count);     // read some bytes
-esp_err_t s24c08_write(uint16_t address, uint8_t *data, uint16_t count);    // write a byte
+void s24c08_init(void); // called from i2c_init() before the esp-idf i2c driver is configured (so we can bit-bang)
+esp_err_t s24c08_read(uint16_t address, uint8_t *data, uint16_t count);                         // read some bytes
+esp_err_t s24c08_write(uint16_t address, uint8_t *data, uint16_t count);                        // write some bytes
 
 
