@@ -48,6 +48,7 @@ static void register_hw_detect();
 static void register_als();
 static void register_temperature();
 static void register_eeprom();
+static void register_ledpwm();
 #endif
 
 static void register_7953();
@@ -75,6 +76,7 @@ void register_omar()
     register_als();
     register_temperature();
     register_eeprom();
+    register_ledpwm();
 #endif
 
 }
@@ -684,6 +686,52 @@ static void register_eeprom()
         .argtable = &eeprom_args
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&eeprom_cmd) );
+}
+
+static int led_pwm(int argc, char** argv)
+{
+    printf("%s(): P-W-M!\n", __func__);
+
+    return 0;
+}
+
+static struct {
+    struct arg_int *led;        // specify the led to dim/brighten - "1" or "2"
+    struct arg_lit *brighten;   // brighten the specified led
+    struct arg_lit *dim;        // dim the specified led
+    struct arg_end *end;
+} ledpwm_args;
+
+
+static void register_ledpwm()
+{
+    ledpwm_args.led = arg_int1(
+        "l", 
+        "led", 
+        "<int>", 
+        "Specify led 1 or 2");
+
+    ledpwm_args.brighten = arg_lit0(
+        "b", 
+        "brighten", 
+        "Brighten the specified led");
+
+
+    ledpwm_args.dim = arg_lit0(
+        "d", 
+        "dim", 
+        "Dim the specified led");
+
+    ledpwm_args.end = arg_end(3);
+
+    const esp_console_cmd_t pwm_cmd = {
+        .command = "pwm",
+        .help = "Dim or brighten the leds",
+        .hint = NULL,
+        .func = &led_pwm,
+        .argtable = &ledpwm_args
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&pwm_cmd) );
 }
 
 static void register_toggle_white_led0()
