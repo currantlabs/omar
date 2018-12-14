@@ -688,13 +688,6 @@ static void register_eeprom()
     ESP_ERROR_CHECK( esp_console_cmd_register(&eeprom_cmd) );
 }
 
-static int led_pwm(int argc, char** argv)
-{
-    printf("%s(): P-W-M!\n", __func__);
-
-    return 0;
-}
-
 static struct {
     struct arg_int *led;        // specify the led to dim/brighten - "1" or "2"
     struct arg_lit *brighten;   // brighten the specified led
@@ -702,6 +695,18 @@ static struct {
     struct arg_end *end;
 } ledpwm_args;
 
+
+static int led_pwm(int argc, char** argv)
+{
+
+    int nerrors = arg_parse(argc, argv, (void**) &ledpwm_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, ledpwm_args.end, argv[0]);
+        return 1;
+    }
+
+    return 0;
+}
 
 static void register_ledpwm()
 {
