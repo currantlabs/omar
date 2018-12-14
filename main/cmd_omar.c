@@ -316,11 +316,10 @@ static int access_eeprom(int argc, char** argv)
 
         memset(buf, write_value, OMAR_EEPROM_SIZE);
 
+#define MEASURE_EEPROM_WRITE_TIME
 #if defined(MEASURE_EEPROM_WRITE_TIME)
-        uint32_t startTimeStamp, finishTimeStamp;
         int startTime, finishTime;
         startTime = xTaskGetTickCount();
-        startTimeStamp = esp_log_timestamp();
 #endif
 
         esp_err_t ret = s24c08_write(0, buf, count);
@@ -332,12 +331,10 @@ static int access_eeprom(int argc, char** argv)
 
 #if defined(MEASURE_EEPROM_WRITE_TIME)
         finishTime = xTaskGetTickCount();
-        finishTimeStamp = esp_log_timestamp();
-        printf("%s(): Erasing all 1024 bytes of eeprom took %d ticks (that's about %d milliseconds, and %d in esp_log_timestamp() terms)\n", 
+        printf("%s(): Erasing all 1024 bytes of eeprom took %d ticks (that's about %d milliseconds, since 1 tick is 10 milliseconds)\n", 
                __func__, 
                finishTime - startTime,
-               finishTime - startTime,
-               finishTimeStamp - startTimeStamp);
+               (finishTime - startTime) * 10);
 #endif
 
         goto finish;
