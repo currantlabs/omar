@@ -705,6 +705,34 @@ static int led_pwm(int argc, char** argv)
         return 1;
     }
 
+    if (ledpwm_args.brighten->count == 1
+        &&
+        ledpwm_args.dim->count == 1) {
+        printf("%s(): the \"--brighten\" and \"--dim\" options are mutually exclusive - pick one\n", __func__);
+        return 1;
+    }
+
+    int led = ledpwm_args.led->ival[0];
+
+    if (!( led == 1 || led == 2)) {
+        printf("%s(): the \"--led\" must equal either 1 or 2\n", __func__);
+        return 1;
+    }
+
+    if (ledpwm_args.brighten->count == 0
+        &&
+        ledpwm_args.dim->count == 0) {
+        printf("%s(): tell me what to do, \"--brighten\" or \"--dim\" - pick one\n", __func__);
+        return 1;
+    }
+
+    char operation = (ledpwm_args.brighten->count == 0 ? 'd' : 'b');
+
+    printf("%s(): %s led %d\n",
+           __func__,
+           operation == 'b' ? "Brightening" : "Dimming",
+           led);    
+
     return 0;
 }
 
