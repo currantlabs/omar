@@ -126,6 +126,22 @@ typedef enum {
 
 
 // Omar LEDs and Buttons
+
+/*
+ * With the LED PWM resolution set to LEDC_TIMER_13_BIT
+ * we've can set the duty cycle to anything between 0
+ * and 2^13 = 8192. 
+ *
+ * We're going to arbitrarily set the max led resolution
+ * to 7936 (we want to always have a bit of a "blanking
+ * interval" during which to fire up the ambient light
+ * sensor).
+ */
+#define LED_DUTY_RESOLUTION             (LEDC_TIMER_13_BIT)
+
+// LED_MAX_DUTY is 8192 - 256 = 7936:
+#define LED_MAX_DUTY                    (7936)
+
 #define OMAR_WHITE_LED0                 (26)
 #define OMAR_WHITE_LED1                 (27)
 

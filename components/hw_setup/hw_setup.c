@@ -7,12 +7,14 @@
 #include <iot_button.h>
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
+#include "driver/ledc.h"
 
 
 static void gpio_setup(void);
 #if defined(HW_OMAR)
 static HwVersionT m_hw_version = HW_VERSION_UNKNOWN;
 static int m_hw_version_raw_adc = 0;
+static void led_setup(void);
 static void button_setup(void);
 static void plug_detect_setup(void);
 static void adc_setup(void);
@@ -25,6 +27,7 @@ void omar_setup(void)
 #if defined(HW_OMAR)
     button_setup();
     adc_setup();
+    led_setup();
 #endif
 
     adi_spi_init();
@@ -170,6 +173,49 @@ static void gpio_setup(void)
 
 }
 
+/*
+ * Both leds share a single pwm timer:
+ */
+static ledc_timer_config_t ledc_timer = {
+    .duty_resolution = LEDC_TIMER_13_BIT, // resolution of PWM duty
+    .freq_hz = 5000,                      // frequency of PWM signal
+    .speed_mode = LEDC_HIGH_SPEED_MODE,   // timer mode
+    .timer_num = LEDC_TIMER_0             // timer index
+};
+    
+/*
+ * Index into the array of channel configs:
+ */
+#define OMAR_LED0_LEDCINDEX             (0)
+#define OMAR_LED1_LEDCINDEX             (1)
+
+
+static ledc_channel_config_t ledc_channel[] = {
+    {
+        .channel    = LEDC_CHANNEL_0,
+        .duty       = 0,
+        .gpio_num   = OMAR_WHITE_LED0,
+        .speed_mode = LEDC_HIGH_SPEED_MODE,
+        .timer_sel  = LEDC_TIMER_0
+    },
+    {
+        .channel    = LEDC_CHANNEL_1,
+        .duty       = 0,
+        .gpio_num   = OMAR_WHITE_LED1,
+        .speed_mode = LEDC_HIGH_SPEED_MODE,
+        .timer_sel  = LEDC_TIMER_0
+    }
+};
+
+
+static void led_setup(void)
+{
+    ledc_timer_config(&ledc_timer);
+
+    ledc_channel_config(&ledc_channel[OMAR_LED0_LEDCINDEX]);
+    ledc_channel_config(&ledc_channel[OMAR_LED1_LEDCINDEX]);
+
+}
 
 static void update_relay_coil(gpio_num_t coil)
 {
@@ -243,16 +289,61 @@ static void button_setup(void)
 
 }
 
+/*
+ * NOTE: led_set_level() is not thread safe! See comments in "ledc.h" 
+ * in the esp-idf sdk for details... If we decide to implement some kind
+ * of "ui thread" and restrict all led manipulation to that thread, we're
+ * ok with this implementation. Otherwise we'll have to revisit this..
+ */
+static void led_set_level(uint8_t led, uint32_t duty)
+{
+    uint8_t ch = (led == OMAR_WHITE_LED0 ? OMAR_LED0_LEDCINDEX : OMAR_LED1_LEDCINDEX);
+
+    if (duty > LED_MAX_DUTY) {
+        duty = LED_MAX_DUTY;
+    }
+
+    ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, duty);
+    ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
+
+
+    printf("%s(): Set the duty cycle of led #%d to %d (hpoint is now %d)\n", 
+           __func__,
+           ch,
+           duty,
+           ledc_get_hpoint(ledc_channel[ch].speed_mode, ledc_channel[ch].channel));
+
+}
+
+/*
+ * led_turnonoff() is used to toggle an led between
+ * "full on" (duty cycle set to LED_MAX_DUTY), and
+ * "full off" (duty cycle is 0). 
+ * 
+ * It mimics the way we used to control the leds
+ * before the PWM integration, when the leds were
+ * just gpio lines that we pulled high or low.
+ *
+ */
+static void led_turnonoff(uint8_t led, bool on)
+{
+    if (on) {
+        led_set_level(led, LED_MAX_DUTY);
+    } else {
+        led_set_level(led, 0);
+    }
+}
+
 static void handle_plug_unplug_event(uint32_t plug, bool on)
 {
     switch(plug) {
 
     case PLUG_DETECT1:
-        gpio_set_level(OMAR_WHITE_LED0, on);
+        led_turnonoff(OMAR_WHITE_LED0, on);
         break;
 
     case PLUG_DETECT2:
-        gpio_set_level(OMAR_WHITE_LED1, on);
+        led_turnonoff(OMAR_WHITE_LED1, on);
         break;
 
     default:
@@ -335,7 +426,7 @@ int toggle_white_led0(int argc, char** argv)
 
     on = !on;
 
-    gpio_set_level(OMAR_WHITE_LED0, on);
+    led_turnonoff(OMAR_WHITE_LED0, on);
 
     return (on ? 1 : 0);
 }
@@ -346,7 +437,7 @@ int toggle_white_led1(int argc, char** argv)
 
     on = !on;
 
-    gpio_set_level(OMAR_WHITE_LED1, on);
+    led_turnonoff(OMAR_WHITE_LED1, on);
 
     return (on ? 1 : 0);
 }
