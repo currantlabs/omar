@@ -177,10 +177,10 @@ static void gpio_setup(void)
  * Both leds share a single pwm timer:
  */
 static ledc_timer_config_t ledc_timer = {
-    .duty_resolution = LEDC_TIMER_13_BIT, // resolution of PWM duty
-    .freq_hz = 5000,                      // frequency of PWM signal
-    .speed_mode = LEDC_HIGH_SPEED_MODE,   // timer mode
-    .timer_num = LEDC_TIMER_0             // timer index
+    .duty_resolution = OMAR_LED_DUTY_RESOLUTION,// resolution of PWM duty
+    .freq_hz = 5000,                            // frequency of PWM signal
+    .speed_mode = LEDC_HIGH_SPEED_MODE,         // timer mode
+    .timer_num = LEDC_TIMER_0                   // timer index
 };
     
 /*
@@ -290,17 +290,33 @@ static void button_setup(void)
 }
 
 /*
- * NOTE: led_set_level() is not thread safe! See comments in "ledc.h" 
+ * led_gt_brightness() returns the duty cycle of the pwm channel
+ * associated with the specified led.
+ *
+ * The led is specified by the assocaited gpio (so either
+ * OMAR_WHITE_LED0 or OMAR_WHITE_LED1)
+ * 
+ */
+uint32_t led_get_brightness(uint8_t led)
+{
+    uint8_t ch = (led == OMAR_WHITE_LED0 ? OMAR_LED0_LEDCINDEX : OMAR_LED1_LEDCINDEX);
+
+    return ledc_get_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
+
+}
+
+/*
+ * NOTE: led_set_brightness() is not thread safe! See comments in "ledc.h" 
  * in the esp-idf sdk for details... If we decide to implement some kind
  * of "ui thread" and restrict all led manipulation to that thread, we're
  * ok with this implementation. Otherwise we'll have to revisit this..
  */
-static void led_set_level(uint8_t led, uint32_t duty)
+void led_set_brightness(uint8_t led, uint32_t duty)
 {
     uint8_t ch = (led == OMAR_WHITE_LED0 ? OMAR_LED0_LEDCINDEX : OMAR_LED1_LEDCINDEX);
 
-    if (duty > LED_MAX_DUTY) {
-        duty = LED_MAX_DUTY;
+    if (duty > OMAR_LED_MAX_DUTY) {
+        duty = OMAR_LED_MAX_DUTY;
     }
 
     ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, duty);
@@ -317,7 +333,7 @@ static void led_set_level(uint8_t led, uint32_t duty)
 
 /*
  * led_turnonoff() is used to toggle an led between
- * "full on" (duty cycle set to LED_MAX_DUTY), and
+ * "full on" (duty cycle set to OMAR_LED_MAX_DUTY), and
  * "full off" (duty cycle is 0). 
  * 
  * It mimics the way we used to control the leds
@@ -328,9 +344,9 @@ static void led_set_level(uint8_t led, uint32_t duty)
 static void led_turnonoff(uint8_t led, bool on)
 {
     if (on) {
-        led_set_level(led, LED_MAX_DUTY);
+        led_set_brightness(led, OMAR_LED_MAX_DUTY);
     } else {
-        led_set_level(led, 0);
+        led_set_brightness(led, 0);
     }
 }
 

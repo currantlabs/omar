@@ -137,10 +137,10 @@ typedef enum {
  * interval" during which to fire up the ambient light
  * sensor).
  */
-#define LED_DUTY_RESOLUTION             (LEDC_TIMER_13_BIT)
+#define OMAR_LED_DUTY_RESOLUTION        (LEDC_TIMER_13_BIT)
 
-// LED_MAX_DUTY is 8192 - 256 = 7936:
-#define LED_MAX_DUTY                    (7936)
+// OMAR_LED_MAX_DUTY is 8192 - 256 = 7936:
+#define OMAR_LED_MAX_DUTY               (7936)
 
 #define OMAR_WHITE_LED0                 (26)
 #define OMAR_WHITE_LED1                 (27)
@@ -185,4 +185,6 @@ int toggle_red(int argc, char** argv);
 HwVersionT hw_version(void);
 int hw_version_raw(void);
 int als_raw(void);
+uint32_t led_get_brightness(uint8_t led);
+void led_set_brightness(uint8_t led, uint32_t duty);
 #endif  // HW_OMAR

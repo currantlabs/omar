@@ -690,14 +690,16 @@ static void register_eeprom()
 
 static struct {
     struct arg_int *led;        // specify the led to dim/brighten - "1" or "2"
-    struct arg_lit *brighten;   // brighten the specified led
-    struct arg_lit *dim;        // dim the specified led
+    struct arg_int *brighten;   // increase the pwm duty cycle by the specified amount
+    struct arg_int *dim;        // decrease the pwm duty cycle by the specified amount
     struct arg_end *end;
 } ledpwm_args;
 
 
 static int led_pwm(int argc, char** argv)
 {
+
+    /* uint32_t duty_cyle_delta = 100; */
 
     int nerrors = arg_parse(argc, argv, (void**) &ledpwm_args);
     if (nerrors != 0) {
@@ -727,11 +729,21 @@ static int led_pwm(int argc, char** argv)
     }
 
     char operation = (ledpwm_args.brighten->count == 0 ? 'd' : 'b');
+    uint8_t led_gpio = (led == 1 ? OMAR_WHITE_LED0 : OMAR_WHITE_LED1);
+    uint32_t new_duty_cycle = led_get_brightness(led_gpio);
 
-    printf("%s(): %s led %d\n",
+    if (operation == 'd') {
+        new_duty_cycle -= ledpwm_args.dim->ival[0];
+    } else {
+        new_duty_cycle += ledpwm_args.brighten->ival[0];
+    }
+
+    led_set_brightness(led_gpio, new_duty_cycle);
+
+    printf("%s(): %s's new duty cycle is %d\n",
            __func__,
-           operation == 'b' ? "Brightening" : "Dimming",
-           led);    
+           (led == 1 ? "OMAR_WHITE_LED0" : "OMAR_WHITE_LED1"),
+           led_get_brightness(led_gpio));
 
     return 0;
 }
@@ -744,16 +756,18 @@ static void register_ledpwm()
         "<int>", 
         "Specify led 1 or 2");
 
-    ledpwm_args.brighten = arg_lit0(
+    ledpwm_args.brighten = arg_int0(
         "b", 
         "brighten", 
-        "Brighten the specified led");
+        "<int>", 
+        "Brighten the led by increasing the pwm duty cycle by the specified amount (defaults to 100)");
 
 
-    ledpwm_args.dim = arg_lit0(
+    ledpwm_args.dim = arg_int0(
         "d", 
         "dim", 
-        "Dim the specified led");
+        "<int>", 
+        "Dim the led by decreasing the pwm duty cycle by the specified amount (defaults to 100)");
 
     ledpwm_args.end = arg_end(3);
 
