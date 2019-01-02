@@ -139,8 +139,8 @@ typedef enum {
  */
 #define OMAR_LED_DUTY_RESOLUTION        (LEDC_TIMER_13_BIT)
 
-// OMAR_LED_MAX_DUTY is 8192 - 256 = 7936:
-#define OMAR_LED_MAX_DUTY               (7936)
+// OMAR_LED_MAX_DUTY is 8192 (LEDC_TIMER_13_BIT, and 2^^13 = 8192-1)
+#define OMAR_LED_MAX_DUTY               (8191)
 
 #define OMAR_WHITE_LED0                 (26)
 #define OMAR_WHITE_LED1                 (27)

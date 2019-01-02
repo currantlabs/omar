@@ -690,6 +690,8 @@ static void register_eeprom()
 
 static struct {
     struct arg_int *led;        // specify the led to dim/brighten - "1" or "2"
+    struct arg_lit *getduty;    // return the current duty cycle in effect for the specified led
+    struct arg_int *setduty;    // set the pwm duty cycle for the led (maximum is OMAR_LED_MAX_DUTY or 8191)
     struct arg_int *brighten;   // increase the pwm duty cycle by the specified amount
     struct arg_int *dim;        // decrease the pwm duty cycle by the specified amount
     struct arg_end *end;
@@ -714,6 +716,28 @@ static int led_pwm(int argc, char** argv)
         return 1;
     }
 
+    if (ledpwm_args.getduty->count == 1
+        &&
+        ledpwm_args.setduty->count == 1) {
+        printf("%s(): the \"--get\" and \"--set\" options are mutually exclusive - pick one\n", __func__);
+        return 1;
+    }
+
+    bool brightdim = 
+      (ledpwm_args.brighten->count == 1)
+      ||
+      (ledpwm_args.dim->count == 1);
+
+    bool getset = 
+      (ledpwm_args.getduty->count == 1)
+      ||
+      (ledpwm_args.setduty->count == 1);
+
+    if (brightdim && getset) {
+        printf("%s(): the \"--get\"/\"--set\" apis, and the \"--brighten\"/\"--dim\" apis are mutually exclusive - pick one\n", __func__);
+        return 1;
+    }
+
     int led = ledpwm_args.led->ival[0];
 
     if (!( led == 1 || led == 2)) {
@@ -721,29 +745,57 @@ static int led_pwm(int argc, char** argv)
         return 1;
     }
 
-    if (ledpwm_args.brighten->count == 0
-        &&
-        ledpwm_args.dim->count == 0) {
-        printf("%s(): tell me what to do, \"--brighten\" or \"--dim\" - pick one\n", __func__);
+    if (!(brightdim || getset)) {
+        printf("%s(): Pick something you want to do -- either \"--get\", \"--set\", \"--brighten\" or \"--dim\"\n", __func__);
         return 1;
     }
 
-    char operation = (ledpwm_args.brighten->count == 0 ? 'd' : 'b');
+    char operation; 
+    if (brightdim) {
+        operation = (ledpwm_args.brighten->count == 0 ? 'd' : 'b');
+    } else if (getset) {
+        operation = (ledpwm_args.getduty->count == 0 ? 's' : 'g');
+    }
+
     uint8_t led_gpio = (led == 1 ? OMAR_WHITE_LED0 : OMAR_WHITE_LED1);
     uint32_t new_duty_cycle = led_get_brightness(led_gpio);
 
-    if (operation == 'd') {
-        new_duty_cycle -= ledpwm_args.dim->ival[0];
+    if (brightdim) {
+        if (operation == 'd') {
+            new_duty_cycle -= ledpwm_args.dim->ival[0];
+        } else {
+            new_duty_cycle += ledpwm_args.brighten->ival[0];
+        }
+
+        led_set_brightness(led_gpio, new_duty_cycle);
+
+        printf("%s(): %s's new duty cycle is %d\n",
+               __func__,
+               (led == 1 ? "OMAR_WHITE_LED0" : "OMAR_WHITE_LED1"),
+               led_get_brightness(led_gpio));
+
+    } else if (getset) {
+        if (operation == 'g') {
+            printf("%s(): %s's current duty cycle is %d\n",
+                   __func__,
+                   (led == 1 ? "OMAR_WHITE_LED0" : "OMAR_WHITE_LED1"),
+                   led_get_brightness(led_gpio));
+
+        } else if (operation == 's') {
+            new_duty_cycle = ledpwm_args.setduty->ival[0];
+            led_set_brightness(led_gpio, new_duty_cycle);
+
+            printf("%s(): %s's new duty cycle is %d\n",
+                   __func__,
+                   (led == 1 ? "OMAR_WHITE_LED0" : "OMAR_WHITE_LED1"),
+                   led_get_brightness(led_gpio));
+
+        }
+
     } else {
-        new_duty_cycle += ledpwm_args.brighten->ival[0];
+        printf("%s(): No operation specified - pick something you want to do -- either \"--get\", \"--set\", \"--brighten\" or \"--dim\"\n", __func__);
+        return 1;
     }
-
-    led_set_brightness(led_gpio, new_duty_cycle);
-
-    printf("%s(): %s's new duty cycle is %d\n",
-           __func__,
-           (led == 1 ? "OMAR_WHITE_LED0" : "OMAR_WHITE_LED1"),
-           led_get_brightness(led_gpio));
 
     return 0;
 }
@@ -756,24 +808,35 @@ static void register_ledpwm()
         "<int>", 
         "Specify led 1 or 2");
 
+    ledpwm_args.getduty = arg_lit0(
+        "g", 
+        "get", 
+        "Returns the pwm duty cycle for the specified led");
+
+    ledpwm_args.setduty = arg_int0(
+        "s", 
+        "set", 
+        "<int>", 
+        "Specify the pwm duty cycle for the led (min is 0, max is 8191)");
+
     ledpwm_args.brighten = arg_int0(
         "b", 
         "brighten", 
         "<int>", 
-        "Brighten the led by increasing the pwm duty cycle by the specified amount (defaults to 100)");
+        "Brighten the led by increasing the pwm duty cycle by the specified amount");
 
 
     ledpwm_args.dim = arg_int0(
         "d", 
         "dim", 
         "<int>", 
-        "Dim the led by decreasing the pwm duty cycle by the specified amount (defaults to 100)");
+        "Dim the led by decreasing the pwm duty cycle by the specified amount");
 
     ledpwm_args.end = arg_end(3);
 
     const esp_console_cmd_t pwm_cmd = {
         .command = "pwm",
-        .help = "Dim or brighten the leds",
+        .help = "Dim or brighten the leds; get/set the current pwm duty cycle for each led",
         .hint = NULL,
         .func = &led_pwm,
         .argtable = &ledpwm_args
