@@ -1,5 +1,6 @@
 #include <driver/gpio.h>
 #include "hw_setup.h"
+#include "omar_als_timer.h"
 #include "adi_spi.h"
 #include "i2c.h"
 #include <freertos/FreeRTOS.h>
@@ -28,6 +29,7 @@ void omar_setup(void)
     button_setup();
     adc_setup();
     led_setup();
+    timer_setup();
 #endif
 
     adi_spi_init();
@@ -178,9 +180,9 @@ static void gpio_setup(void)
  */
 static ledc_timer_config_t ledc_timer = {
     .duty_resolution = OMAR_LED_DUTY_RESOLUTION,// resolution of PWM duty
-    .freq_hz = 5000,                            // frequency of PWM signal
-    .speed_mode = LEDC_HIGH_SPEED_MODE,         // timer mode
-    .timer_num = LEDC_TIMER_0                   // timer index
+    .freq_hz = OMAR_LEDC_FREQ_HZ,               // frequency of PWM signal
+    .speed_mode = OMAR_LEDC_SPEED_MODE,         // timer mode
+    .timer_num = OMAR_LEDC_TIMER                // timer index
 };
     
 /*

@@ -130,17 +130,15 @@ typedef enum {
 /*
  * With the LED PWM resolution set to LEDC_TIMER_13_BIT
  * we've can set the duty cycle to anything between 0
- * and 2^13 = 8192. 
- *
- * We're going to arbitrarily set the max led resolution
- * to 7936 (we want to always have a bit of a "blanking
- * interval" during which to fire up the ambient light
- * sensor).
+ * and 2^13-1 = 8191. 
  */
 #define OMAR_LED_DUTY_RESOLUTION        (LEDC_TIMER_13_BIT)
 
 // OMAR_LED_MAX_DUTY is 8192 (LEDC_TIMER_13_BIT, and 2^^13 = 8192-1)
 #define OMAR_LED_MAX_DUTY               (8191)
+#define OMAR_LEDC_TIMER                 (LEDC_TIMER_0)
+#define OMAR_LEDC_SPEED_MODE            (LEDC_HIGH_SPEED_MODE)
+#define OMAR_LEDC_FREQ_HZ               (5000)
 
 #define OMAR_WHITE_LED0                 (26)
 #define OMAR_WHITE_LED1                 (27)
