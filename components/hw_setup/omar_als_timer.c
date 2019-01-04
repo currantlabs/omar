@@ -17,13 +17,16 @@
 #include "esp_err.h"
 #include "hw_setup.h"
 
+// Enable OMAR_ALS_TIMER_VERBOSE to see lots of debug spew
+//#define OMAR_ALS_TIMER_VERBOSE
+
 static void pause(uint32_t timer_sel);
 static void resume(uint32_t timer_sel);
 static void timer_example_evt_task(void *arg);
 
 #define TIMER_DIVIDER         16  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
-#define TIMER_INTERVAL0_SEC   (9.0) // sample test interval for the first timer
+#define TIMER_INTERVAL0_SEC   (2.0) // sample test interval for the first timer
 #define TEST_WITH_RELOAD      1        // testing will be done with auto reload
 
 /*
@@ -132,7 +135,7 @@ static void example_tg0_timer_init(int timer_idx,
 void timer_setup(void)
 {
     timer_queue = xQueueCreate(10, sizeof(timer_event_t));
-    example_tg0_timer_init(TIMER_0, TEST_WITH_RELOAD,    TIMER_INTERVAL0_SEC);
+    example_tg0_timer_init(TIMER_0, TEST_WITH_RELOAD, TIMER_INTERVAL0_SEC);
     xTaskCreate(timer_example_evt_task, "timer_evt_task", 2048, NULL, 5, NULL);
 }
 
@@ -173,17 +176,32 @@ static void timer_example_evt_task(void *arg)
 
         /* Print information that the timer reported an event */
         if (evt.type == TEST_WITH_RELOAD) {
+#if defined(OMAR_ALS_TIMER_VERBOSE)
             printf("\n\t\t\t\t\t\t\t\t  Example timer with auto reload\n");
+#endif
         } else {
             printf("\n\t\t\t\t\t\t\t\t  UNKNOWN EVENT TYPE\n");
         }
-        printf("\t\t\t\t\t\t\t\tGroup[%d], timer[%d] alarm event\n", evt.timer_group, evt.timer_idx);
 
+        
+#if defined(OMAR_ALS_TIMER_VERBOSE)
+        printf("\t\t\t\t\t\t\t\tGroup[%d], timer[%d] alarm event\n", evt.timer_group, evt.timer_idx);
         printf("\t\t\t\t\t\t\t\tPausing ledc timer select OMAR_LEDC_TIMER (0x%02x):\n", OMAR_LEDC_TIMER);
+#endif
+
+        // Turn the LEDs off, pause briefly, and read the ambient light sensor reading:
         pause(OMAR_LEDC_TIMER);
-        vTaskDelay(1500 / portTICK_PERIOD_MS);
-        printf("\t\t\t\t\t\t\t\tResuming ledc timer select OMAR_LEDC_TIMER (0x%02x):\n", OMAR_LEDC_TIMER);
+
+        vTaskDelay(ALS_SAMPLE_DELAY);
+
+        int adc = als_raw();
+        printf("\t\t\t\t\t\t\t\tals=%d\n", adc);
+        
+
         resume(OMAR_LEDC_TIMER);
+#if defined(OMAR_ALS_TIMER_VERBOSE)
+        printf("\t\t\t\t\t\t\t\tResuming ledc timer select OMAR_LEDC_TIMER (0x%02x):\n", OMAR_LEDC_TIMER);
+#endif
             
 
     }

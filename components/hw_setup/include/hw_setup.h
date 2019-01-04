@@ -159,6 +159,20 @@ typedef enum {
 #define HW_DET                          (38)
 #define HW_DET__ADC_CHANNEL             (ADC_CHANNEL_2)
 
+// At fixed intervals we "pause" the pwm led drive, turning
+// the leds off so that we can sample the ambient light using
+// the als output at VOUT_LGHT_SNSR. The constant ALS_SAMPLE_DELAY
+// specifies how long after this pause to wait before reading
+// the als; practically speaking there should be no need for
+// any delay (speed of light, duh) -- but there may be "slew effects"
+// from the pwm led controller regarding waiting for the current
+// pwm "period" to expire before the led output changes state
+// etc etc..
+// This odd delay, (1/portTICK_PERIOD_MS), I've used elsewhere
+// and used a logic analyzer to measure the resulting delay as
+// 11.4 usec.
+#define ALS_SAMPLE_DELAY                (1/portTICK_PERIOD_MS)
+
 
 #endif // HW_OMAR
 
