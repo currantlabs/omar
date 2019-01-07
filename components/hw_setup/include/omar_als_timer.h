@@ -6,5 +6,5 @@
  */
 #pragma once
 
-void timer_setup(void);
-
+void timer_setup(void); // initialize the timer, and a task to process timer events
+void enable_als_timer(bool on); // if "on" is true call "timer_start()", else "timer_pause()"

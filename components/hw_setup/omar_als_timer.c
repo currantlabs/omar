@@ -130,7 +130,15 @@ static void example_tg0_timer_init(int timer_idx,
     timer_isr_register(TIMER_GROUP_0, timer_idx, timer_group0_isr, 
         (void *) timer_idx, ESP_INTR_FLAG_IRAM, NULL);
 
-    timer_start(TIMER_GROUP_0, timer_idx);
+}
+
+void enable_als_timer(bool on)
+{
+    if (on) {
+        timer_start(TIMER_GROUP_0, TIMER_0);
+    } else {
+        timer_pause(TIMER_GROUP_0, TIMER_0);
+    }
 }
 
 void timer_setup(void)

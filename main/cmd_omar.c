@@ -17,6 +17,7 @@
 #include "esp_log.h"
 #include "esp_console.h"
 #include "hw_setup.h"
+#include "omar_als_timer.h"
 #include "adi_spi.h"
 #include "sdkconfig.h"
 #if defined(HW_OMAR) || defined(HW_ESP32_PICOKIT)
@@ -886,22 +887,68 @@ static void register_hw_detect()
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
+static struct {
+    struct arg_lit *timer_off;
+    struct arg_lit *timer_on;
+    struct arg_end *end;
+} als_args;
+
 static int print_als(int argc, char** argv)
 {
-    int adc = als_raw();
+    int nerrors = arg_parse(argc, argv, (void**) &als_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, als_args.end, argv[0]);
+        return 1;
+    }
 
-    printf("Ambient light sensor reading is %d (0x%02x)\n", 
-           adc, adc);
+    // If you're not enabling or disabling the timer-driven
+    // als sampling, just dump the current als value:
+    if (als_args.timer_off->count == 0
+        &&
+        als_args.timer_on->count == 0) {
+        int adc = als_raw();
+
+        printf("Ambient light sensor reading is %d (0x%02x)\n", 
+               adc, adc);
+        return 0;
+    }
+
+    // You can't disable and enable at the same time:
+    if (als_args.timer_off->count != 0
+        &&
+        als_args.timer_on->count != 0) {
+
+        printf("%s(): The \"--enable\" and \"--disable\" options are mutually exculsive - pick one\n", __func__);
+               
+        return 1;
+    }
+    
+    enable_als_timer(als_args.timer_on->count != 0);
+
     return 0;
+
 }
 
 static void register_als()
 {
+    als_args.timer_off = arg_lit0(
+        "d", 
+        "--disable", 
+        "Disables the timer that triggers automatic als sampling");
+
+    als_args.timer_on = arg_lit0(
+        "e", 
+        "--enable", 
+        "Enables the timer that triggers automatic als sampling");
+
+    als_args.end = arg_end(3);
+
     const esp_console_cmd_t cmd = {
         .command = "als",
         .help = "Print out the ADC reading for the Ambient Light Sensor",
         .hint = NULL,
         .func = &print_als,
+        .argtable = &als_args
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
