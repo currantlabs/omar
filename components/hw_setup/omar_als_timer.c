@@ -10,6 +10,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "esp_task_wdt.h"
 #include "driver/ledc.h"
 #include "soc/timer_group_struct.h"
 #include "driver/periph_ctrl.h"
@@ -170,9 +171,25 @@ static void resume(uint32_t timer_sel)
 static void timer_example_evt_task(void *arg)
 {
 
+    uint32_t block_time_msec = 250; // block a quarter second so you can pet the watchdog
+
+    // Subscribe this task to the TWDT, check to make sure it's subscribed:
+    CHECK_ERROR_CODE(esp_task_wdt_add(NULL), ESP_OK);
+    CHECK_ERROR_CODE(esp_task_wdt_status(NULL), ESP_OK);
+
+
     while (1) {
         timer_event_t evt;
-        xQueueReceive(timer_queue, &evt, portMAX_DELAY);
+        bool gotQueueEvent;
+
+        gotQueueEvent = xQueueReceive(timer_queue, &evt, block_time_msec / portTICK_PERIOD_MS);
+
+        CHECK_ERROR_CODE(esp_task_wdt_reset(), ESP_OK);  // Pet the watchdog each time through
+
+        if (!gotQueueEvent) {
+            // Timed out waiting for an event, nothing on the queue:
+            continue;
+        }
 
         /* Print information that the timer reported an event */
         if (evt.type == TEST_WITH_RELOAD) {

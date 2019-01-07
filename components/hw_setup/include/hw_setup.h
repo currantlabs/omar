@@ -6,6 +6,18 @@
 
 #pragma once
 
+/*
+ * Macro to check the outputs of TWDT functions and trigger an abort if an
+ * incorrect code is returned.
+ */
+#define CHECK_ERROR_CODE(returned, expected) ({                        \
+            if(returned != expected){                                  \
+                printf("TWDT ERROR\n");                                \
+                abort();                                               \
+            }                                                          \
+})
+
+
 typedef enum {
     HW_VERSION_UNKNOWN,
     HW_VERSION_DEVKIT,
