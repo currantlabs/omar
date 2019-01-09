@@ -17,6 +17,7 @@
 #include "driver/timer.h"
 #include "esp_err.h"
 #include "hw_setup.h"
+#include "omar_als_timer.h"
 
 // Enable OMAR_ALS_TIMER_VERBOSE to see lots of debug spew
 //#define OMAR_ALS_TIMER_VERBOSE
@@ -27,9 +28,8 @@ static void timer_example_evt_task(void *arg);
 
 #define TIMER_DIVIDER         16  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
-#define TIMER_INTERVAL0_SEC   (0.5) // sample test interval for the first timer
-#define TEST_WITH_RELOAD      1        // testing will be done with auto reload
-
+#define AUTO_RELOAD_ON        1 // testing will be done with auto reload
+#define AUTO_RELOAD_OFF       0 // no auto reload
 /*
  * A sample structure to pass events
  * from the timer interrupt handler to the main program.
@@ -39,6 +39,7 @@ typedef struct {
     int timer_group;
     int timer_idx;
     uint64_t timer_counter_value;
+    int als_reading;
 } timer_event_t;
 
 xQueueHandle timer_queue;
@@ -85,19 +86,32 @@ void IRAM_ATTR timer_group0_isr(void *para)
 
     /* Clear the interrupt
        and update the alarm time for the timer with without reload */
-    if ((intr_status & BIT(timer_idx)) && timer_idx == TIMER_0) {
-        evt.type = TEST_WITH_RELOAD;
+    if ((intr_status & BIT(timer_idx)) && timer_idx == OMAR_ALS_PRIMARY_TIMER) {
+
+        evt.type = AUTO_RELOAD_ON;
         TIMERG0.int_clr_timers.t0 = 1;
+
+        evt.als_reading = als_raw();
+
+        /* After the alarm has been triggered
+           we need enable it again, so it is triggered the next time */
+        TIMERG0.hw_timer[timer_idx].config.alarm_en = TIMER_ALARM_EN;
+
+        /* Now just send the event data back to the main program task */
+        xQueueSendFromISR(timer_queue, &evt, NULL);
+
+    } else if ((intr_status & BIT(timer_idx)) && timer_idx == OMAR_ALS_SECONDARY_TIMER) {
+        evt.type = AUTO_RELOAD_OFF;
+        TIMERG0.int_clr_timers.t1 = 1;
+
+        /* The secondary timer is a "one-shot" timer, so don't
+           enable it again here - just send the data back to the main program:*/
+        xQueueSendFromISR(timer_queue, &evt, NULL);
+
     } else {
         evt.type = -1; // not supported even type
     }
 
-    /* After the alarm has been triggered
-      we need enable it again, so it is triggered the next time */
-    TIMERG0.hw_timer[timer_idx].config.alarm_en = TIMER_ALARM_EN;
-
-    /* Now just send the event data back to the main program task */
-    xQueueSendFromISR(timer_queue, &evt, NULL);
 }
 
 /*
@@ -107,7 +121,7 @@ void IRAM_ATTR timer_group0_isr(void *para)
  * auto_reload - should the timer auto reload on alarm?
  * timer_interval_sec - the interval of alarm to set
  */
-static void example_tg0_timer_init(int timer_idx, 
+static void omar_als_timer_init(int timer_idx, 
     bool auto_reload, double timer_interval_sec)
 {
     /* Select and initialize basic parameters of the timer */
@@ -118,16 +132,16 @@ static void example_tg0_timer_init(int timer_idx,
     config.alarm_en = TIMER_ALARM_EN;
     config.intr_type = TIMER_INTR_LEVEL;
     config.auto_reload = auto_reload;
-    timer_init(TIMER_GROUP_0, timer_idx, &config);
+    timer_init(OMAR_ALS_TIMER_GROUP, timer_idx, &config);
 
     /* Timer's counter will initially start from value below.
        Also, if auto_reload is set, this value will be automatically reload on alarm */
-    timer_set_counter_value(TIMER_GROUP_0, timer_idx, 0x00000000ULL);
+    timer_set_counter_value(OMAR_ALS_TIMER_GROUP, timer_idx, 0x00000000ULL);
 
     /* Configure the alarm value and the interrupt on alarm. */
-    timer_set_alarm_value(TIMER_GROUP_0, timer_idx, timer_interval_sec * TIMER_SCALE);
-    timer_enable_intr(TIMER_GROUP_0, timer_idx);
-    timer_isr_register(TIMER_GROUP_0, timer_idx, timer_group0_isr, 
+    timer_set_alarm_value(OMAR_ALS_TIMER_GROUP, timer_idx, timer_interval_sec * TIMER_SCALE);
+    timer_enable_intr(OMAR_ALS_TIMER_GROUP, timer_idx);
+    timer_isr_register(OMAR_ALS_TIMER_GROUP, timer_idx, timer_group0_isr, 
         (void *) timer_idx, ESP_INTR_FLAG_IRAM, NULL);
 
 }
@@ -135,16 +149,16 @@ static void example_tg0_timer_init(int timer_idx,
 void enable_als_timer(bool on)
 {
     if (on) {
-        timer_start(TIMER_GROUP_0, TIMER_0);
+        timer_start(OMAR_ALS_TIMER_GROUP, OMAR_ALS_PRIMARY_TIMER);
     } else {
-        timer_pause(TIMER_GROUP_0, TIMER_0);
+        timer_pause(OMAR_ALS_TIMER_GROUP, OMAR_ALS_PRIMARY_TIMER);
     }
 }
 
 void timer_setup(void)
 {
     timer_queue = xQueueCreate(10, sizeof(timer_event_t));
-    example_tg0_timer_init(TIMER_0, TEST_WITH_RELOAD, TIMER_INTERVAL0_SEC);
+    omar_als_timer_init(OMAR_ALS_PRIMARY_TIMER, AUTO_RELOAD_ON, OMAR_ALS_PRIMARY_INTERVAL);
     xTaskCreate(timer_example_evt_task, "timer_evt_task", 2048, NULL, 5, NULL);
 }
 
@@ -200,7 +214,7 @@ static void timer_example_evt_task(void *arg)
         }
 
         /* Print information that the timer reported an event */
-        if (evt.type == TEST_WITH_RELOAD) {
+        if (evt.type == AUTO_RELOAD_ON) {
 #if defined(OMAR_ALS_TIMER_VERBOSE)
             printf("\n\t\t\t\t\t\t\t\t  Example timer with auto reload\n");
 #endif
@@ -213,6 +227,9 @@ static void timer_example_evt_task(void *arg)
         printf("\t\t\t\t\t\t\t\tGroup[%d], timer[%d] alarm event\n", evt.timer_group, evt.timer_idx);
         printf("\t\t\t\t\t\t\t\tPausing ledc timer select OMAR_LEDC_TIMER (0x%02x):\n", OMAR_LEDC_TIMER);
 #endif
+
+        // Print out the als reading taken inside the timer interrupt:
+        printf("\t\t\t\t\t\t\t\t[als=%d]\n", evt.als_reading);
 
         // Turn the LEDs off, pause briefly, and read the ambient light sensor reading:
         pause(OMAR_LEDC_TIMER);
