@@ -105,6 +105,12 @@ void IRAM_ATTR timer_group0_isr(void *para)
 
         evt.als_reading = als_raw();
 
+        /* Once you've got your reading,
+         * re-enable the pwm led controller
+         * so the lights turn on again:
+         */
+        resume(OMAR_LEDC_TIMER);
+
         /* The secondary timer is a "one-shot" timer, so don't
            enable it again here */
 
@@ -112,7 +118,7 @@ void IRAM_ATTR timer_group0_isr(void *para)
         evt.type = -1; // not supported even type
     }
 
-	xQueueSendFromISR(timer_queue, &evt, NULL);
+    xQueueSendFromISR(timer_queue, &evt, NULL);
 
 
 }
@@ -217,21 +223,20 @@ static void timer_example_evt_task(void *arg)
 
         /* Print information that the timer reported an event */
         if (evt.type == AUTO_RELOAD_ON) {
-			/* Turn the LEDs off, and arm the secondary timer 
-			 * to read the als adc after a short delay of
-			 * OMAR_ALS_SECONDARY_INTERVAL:
-			 */
-			pause(OMAR_LEDC_TIMER);
+            /* Turn the LEDs off, and arm the secondary timer 
+             * to read the als adc after a short delay of
+             * OMAR_ALS_SECONDARY_INTERVAL:
+             */
+            pause(OMAR_LEDC_TIMER);
 
-			omar_als_timer_init(OMAR_ALS_SECONDARY_TIMER, AUTO_RELOAD_OFF, OMAR_ALS_SECONDARY_INTERVAL);
-			timer_start(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SECONDARY_TIMER);
-			printf("\t\t\t\t\t\t\t\t<primary>\n");
+            omar_als_timer_init(OMAR_ALS_SECONDARY_TIMER, AUTO_RELOAD_OFF, OMAR_ALS_SECONDARY_INTERVAL);
+            timer_start(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SECONDARY_TIMER);
+            printf("\t\t\t\t\t\t\t\t<primary>\n");
 
         
         } else if (evt.type == AUTO_RELOAD_OFF) {
-			// Print out the als reading taken inside the timer interrupt:
-			printf("\t\t\t\t\t\t\t\t[als=%d]\n", evt.als_reading);
-			resume(OMAR_LEDC_TIMER);
+            // Print out the als reading taken inside the timer interrupt:
+            printf("\t\t\t\t\t\t\t\t[als=%d]\n", evt.als_reading);
         } else {
             printf("\n\t\t\t\t\t\t\t\t  UNKNOWN EVENT TYPE\n");
         }
