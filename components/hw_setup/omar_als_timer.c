@@ -27,7 +27,7 @@ static void timer_example_evt_task(void *arg);
 
 #define TIMER_DIVIDER         16  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
-#define TIMER_INTERVAL0_SEC   (2.0) // sample test interval for the first timer
+#define TIMER_INTERVAL0_SEC   (0.5) // sample test interval for the first timer
 #define TEST_WITH_RELOAD      1        // testing will be done with auto reload
 
 /*
