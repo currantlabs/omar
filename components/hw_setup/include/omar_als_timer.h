@@ -22,7 +22,7 @@
  * accordingly.
  */
 #define OMAR_ALS_PRIMARY_TIMER      (TIMER_0)
-#define OMAR_ALS_PRIMARY_INTERVAL   (0.5)
+#define OMAR_ALS_PRIMARY_INTERVAL   (2.0)
 
 /*
  * The secondary timer is started by the

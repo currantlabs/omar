@@ -91,26 +91,29 @@ void IRAM_ATTR timer_group0_isr(void *para)
         evt.type = AUTO_RELOAD_ON;
         TIMERG0.int_clr_timers.t0 = 1;
 
-        evt.als_reading = als_raw();
-
         /* After the alarm has been triggered
            we need enable it again, so it is triggered the next time */
         TIMERG0.hw_timer[timer_idx].config.alarm_en = TIMER_ALARM_EN;
 
+        evt.als_reading = -1; // Flag to show we didn't read the adc here
+
         /* Now just send the event data back to the main program task */
-        xQueueSendFromISR(timer_queue, &evt, NULL);
 
     } else if ((intr_status & BIT(timer_idx)) && timer_idx == OMAR_ALS_SECONDARY_TIMER) {
         evt.type = AUTO_RELOAD_OFF;
         TIMERG0.int_clr_timers.t1 = 1;
 
+        evt.als_reading = als_raw();
+
         /* The secondary timer is a "one-shot" timer, so don't
-           enable it again here - just send the data back to the main program:*/
-        xQueueSendFromISR(timer_queue, &evt, NULL);
+           enable it again here */
 
     } else {
         evt.type = -1; // not supported even type
     }
+
+	xQueueSendFromISR(timer_queue, &evt, NULL);
+
 
 }
 
@@ -199,7 +202,6 @@ static void timer_example_evt_task(void *arg)
     CHECK_ERROR_CODE(esp_task_wdt_add(NULL), ESP_OK);
     CHECK_ERROR_CODE(esp_task_wdt_status(NULL), ESP_OK);
 
-
     while (1) {
         timer_event_t evt;
         bool gotQueueEvent;
@@ -215,32 +217,29 @@ static void timer_example_evt_task(void *arg)
 
         /* Print information that the timer reported an event */
         if (evt.type == AUTO_RELOAD_ON) {
-#if defined(OMAR_ALS_TIMER_VERBOSE)
-            printf("\n\t\t\t\t\t\t\t\t  Example timer with auto reload\n");
-#endif
+			/* Turn the LEDs off, and arm the secondary timer 
+			 * to read the als adc after a short delay of
+			 * OMAR_ALS_SECONDARY_INTERVAL:
+			 */
+			pause(OMAR_LEDC_TIMER);
+
+			omar_als_timer_init(OMAR_ALS_SECONDARY_TIMER, AUTO_RELOAD_OFF, OMAR_ALS_SECONDARY_INTERVAL);
+			timer_start(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SECONDARY_TIMER);
+			printf("\t\t\t\t\t\t\t\t<primary>\n");
+
+        
+        } else if (evt.type == AUTO_RELOAD_OFF) {
+			// Print out the als reading taken inside the timer interrupt:
+			printf("\t\t\t\t\t\t\t\t[als=%d]\n", evt.als_reading);
+			resume(OMAR_LEDC_TIMER);
         } else {
             printf("\n\t\t\t\t\t\t\t\t  UNKNOWN EVENT TYPE\n");
         }
 
         
-#if defined(OMAR_ALS_TIMER_VERBOSE)
-        printf("\t\t\t\t\t\t\t\tGroup[%d], timer[%d] alarm event\n", evt.timer_group, evt.timer_idx);
-        printf("\t\t\t\t\t\t\t\tPausing ledc timer select OMAR_LEDC_TIMER (0x%02x):\n", OMAR_LEDC_TIMER);
-#endif
 
-        // Print out the als reading taken inside the timer interrupt:
-        printf("\t\t\t\t\t\t\t\t[als=%d]\n", evt.als_reading);
 
-        // Turn the LEDs off, pause briefly, and read the ambient light sensor reading:
-        pause(OMAR_LEDC_TIMER);
 
-        vTaskDelay(ALS_SAMPLE_DELAY);
-
-        int adc = als_raw();
-        printf("\t\t\t\t\t\t\t\tals=%d\n", adc);
-        
-
-        resume(OMAR_LEDC_TIMER);
 #if defined(OMAR_ALS_TIMER_VERBOSE)
         printf("\t\t\t\t\t\t\t\tResuming ledc timer select OMAR_LEDC_TIMER (0x%02x):\n", OMAR_LEDC_TIMER);
 #endif
