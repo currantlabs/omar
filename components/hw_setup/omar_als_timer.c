@@ -22,8 +22,8 @@
 // Enable OMAR_ALS_TIMER_VERBOSE to see lots of debug spew
 //#define OMAR_ALS_TIMER_VERBOSE
 
-static void pause(uint32_t timer_sel);
-static void resume(uint32_t timer_sel);
+static void pause_led_pwm(uint32_t timer_sel);
+static void resume_led_pwm(uint32_t timer_sel);
 static void timer_example_evt_task(void *arg);
 
 #define TIMER_DIVIDER         16  //  Hardware timer clock divider
@@ -109,7 +109,7 @@ void IRAM_ATTR timer_group0_isr(void *para)
          * re-enable the pwm led controller
          * so the lights turn on again:
          */
-        resume(OMAR_LEDC_TIMER);
+        resume_led_pwm(OMAR_LEDC_TIMER);
 
         /* The secondary timer is a "one-shot" timer, so don't
            enable it again here */
@@ -171,7 +171,7 @@ void timer_setup(void)
     xTaskCreate(timer_example_evt_task, "timer_evt_task", 2048, NULL, 5, NULL);
 }
 
-static void pause(uint32_t timer_sel)
+static void pause_led_pwm(uint32_t timer_sel)
 {
     ledc_mode_t speed_mode = OMAR_LEDC_SPEED_MODE;
 
@@ -185,7 +185,7 @@ static void pause(uint32_t timer_sel)
     
 }
 
-static void resume(uint32_t timer_sel)
+static void resume_led_pwm(uint32_t timer_sel)
 {
     ledc_mode_t speed_mode = OMAR_LEDC_SPEED_MODE;
 
@@ -227,7 +227,7 @@ static void timer_example_evt_task(void *arg)
              * to read the als adc after a short delay of
              * OMAR_ALS_SECONDARY_INTERVAL:
              */
-            pause(OMAR_LEDC_TIMER);
+            pause_led_pwm(OMAR_LEDC_TIMER);
 
             omar_als_timer_init(OMAR_ALS_SECONDARY_TIMER, AUTO_RELOAD_OFF, OMAR_ALS_SECONDARY_INTERVAL);
             timer_start(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SECONDARY_TIMER);
