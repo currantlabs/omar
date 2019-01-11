@@ -22,7 +22,7 @@
  * accordingly.
  */
 #define OMAR_ALS_PRIMARY_TIMER      (TIMER_0)
-#define OMAR_ALS_PRIMARY_INTERVAL   (2.0)
+#define OMAR_ALS_PRIMARY_INTERVAL   (5.0)
 
 /*
  * The secondary timer is started by the
@@ -49,7 +49,7 @@
  * to the naked eye.
  */
 #define OMAR_ALS_SECONDARY_TIMER    (TIMER_1)
-#define OMAR_ALS_SECONDARY_INTERVAL (0.000010)
+#define OMAR_ALS_SECONDARY_INTERVAL (1.0)
 
 
 void timer_setup(void); // initialize the timer, and a task to process timer events
