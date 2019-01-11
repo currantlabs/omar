@@ -22,7 +22,7 @@
  * accordingly.
  */
 #define OMAR_ALS_PRIMARY_TIMER      (TIMER_0)
-#define OMAR_ALS_PRIMARY_INTERVAL   (5.0)
+#define OMAR_ALS_PRIMARY_INTERVAL   (1.0)
 
 /*
  * The secondary timer is started by the
@@ -49,8 +49,16 @@
  * to the naked eye.
  */
 #define OMAR_ALS_SECONDARY_TIMER    (TIMER_1)
-#define OMAR_ALS_SECONDARY_INTERVAL (1.0)
+#define OMAR_ALS_SECONDARY_INTERVAL (0.0001) // 100 usecs; no flicker, but light levels aren't dropping
+
+
+typedef enum {
+    PRIMARY_TIMER = 0,
+    SECONDARY_TIMER
+} als_timer_t;
 
 
 void timer_setup(void); // initialize the timer, and a task to process timer events
 void enable_als_timer(bool on); // if "on" is true call "timer_start()", else "timer_pause()"
+void set_als_timer_period(als_timer_t timer, double period);
+double get_als_timer_period(als_timer_t timer);

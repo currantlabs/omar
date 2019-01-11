@@ -44,6 +44,30 @@ typedef struct {
 
 xQueueHandle timer_queue;
 
+static double timer_periods[] = {
+    OMAR_ALS_PRIMARY_INTERVAL,  // in units of SECONDS
+    OMAR_ALS_SECONDARY_INTERVAL // in units of MICROSECONDS
+};
+
+void set_als_timer_period(als_timer_t timer, double period)
+{
+
+    // Flip negative time periods
+    if (period < 0) {
+        period *= -1.0;
+    }
+
+
+    timer_periods[timer] = period;
+
+}
+
+double get_als_timer_period(als_timer_t timer)
+{
+    return timer_periods[timer];
+}
+
+
 #if defined(OMAR__PRINT_DETAILED_COUNTER_INFO)
 /*
  * A simple helper function to print the raw timer counter value
@@ -161,7 +185,7 @@ void enable_als_timer(bool on)
 void timer_setup(void)
 {
     timer_queue = xQueueCreate(10, sizeof(timer_event_t));
-    omar_als_timer_init(OMAR_ALS_PRIMARY_TIMER, AUTO_RELOAD_ON, OMAR_ALS_PRIMARY_INTERVAL);
+    omar_als_timer_init(OMAR_ALS_PRIMARY_TIMER, AUTO_RELOAD_ON, get_als_timer_period(PRIMARY_TIMER));
     xTaskCreate(timer_example_evt_task, "timer_evt_task", 2048, NULL, 5, NULL);
 }
 
@@ -217,7 +241,7 @@ static void timer_example_evt_task(void *arg)
              */
             pause_led_pwm();
 
-            omar_als_timer_init(OMAR_ALS_SECONDARY_TIMER, AUTO_RELOAD_OFF, OMAR_ALS_SECONDARY_INTERVAL);
+            omar_als_timer_init(OMAR_ALS_SECONDARY_TIMER, AUTO_RELOAD_OFF, get_als_timer_period(SECONDARY_TIMER));
             timer_start(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SECONDARY_TIMER);
             printf("\t\t\t\t\t\t\t\t<primary>\n");
 

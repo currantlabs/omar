@@ -885,6 +885,9 @@ static void register_hw_detect()
 static struct {
     struct arg_lit *timer_off;
     struct arg_lit *timer_on;
+    struct arg_lit *display_periods;
+    struct arg_int *primarytimer_period;    // in seconds
+    struct arg_int *secondarytimer_period;  // in microseconds
     struct arg_end *end;
 } als_args;
 
@@ -894,6 +897,26 @@ static int print_als(int argc, char** argv)
     if (nerrors != 0) {
         arg_print_errors(stderr, als_args.end, argv[0]);
         return 1;
+    }
+
+    // Take care of the simpler "dump timer periods" case first:
+    if (als_args.display_periods->count != 0) {
+
+        if (als_args.timer_off->count != 0
+            ||
+            als_args.timer_on->count != 0) {
+
+            printf("%s(): The \"--enable\" and \"--disable\" options aren't allowed when calling \"--gettimerperiods\"\n", __func__);
+               
+            return 1;
+        }
+        
+        printf("Ambient light sensor timer periods\r\n\tPrimary:\t%0.2f (seconds)\r\n\tSecondary:\t%0.2f (microseconds)\n",
+               get_als_timer_period(PRIMARY_TIMER),
+               1000000 * get_als_timer_period(SECONDARY_TIMER));
+
+
+        return 0;
     }
 
     // If you're not enabling or disabling the timer-driven
@@ -936,6 +959,24 @@ static void register_als()
         "--enable", 
         "Enables the timer that triggers automatic als sampling");
 
+    als_args.display_periods = arg_lit0(
+        "g", 
+        "--gettimerperiods", 
+        "Show the als timer periods, both primary (seconds) and secondary (microseconds)");
+
+    als_args.primarytimer_period = arg_int0(
+        "p", 
+        "--primary", 
+        "<int>", 
+        "Set the primary als timer period (seconds)");
+
+    
+    als_args.secondarytimer_period = arg_int0(
+        "s", 
+        "--secondary", 
+        "<int>", 
+        "Set the secondary als timer period (microseconds)");
+    
     als_args.end = arg_end(3);
 
     const esp_console_cmd_t cmd = {
