@@ -886,7 +886,6 @@ static struct {
     struct arg_lit *timer_off;
     struct arg_lit *timer_on;
     struct arg_lit *display_periods;
-    struct arg_int *primarytimer_period;    // in seconds
     struct arg_int *secondarytimer_period;  // in microseconds
     struct arg_end *end;
 } als_args;
@@ -925,8 +924,6 @@ static int print_als(int argc, char** argv)
         &&
         als_args.timer_on->count == 0
         &&
-        als_args.primarytimer_period->count == 0
-        &&
         als_args.secondarytimer_period->count == 0) {
         int adc = als_raw();
 
@@ -937,9 +934,7 @@ static int print_als(int argc, char** argv)
 
     // Next handl the case of setting either of the ambient
     // light sensor timer periods:
-    if (als_args.primarytimer_period->count != 0
-        ||
-        als_args.secondarytimer_period->count != 0) {
+    if (als_args.secondarytimer_period->count != 0) {
 
         if (als_args.timer_off->count != 0
             ||
@@ -962,14 +957,7 @@ static int print_als(int argc, char** argv)
              get_als_timer_period(SECONDARY_TIMER));
 
 
-        double primarytimerperiod = 
-            (als_args.primarytimer_period->count != 0 
-             ? 
-             ((double ) als_args.primarytimer_period->ival[0])
-             :
-             get_als_timer_period(PRIMARY_TIMER));
-
-
+        double primarytimerperiod = get_als_timer_period(PRIMARY_TIMER);
 
         if (secondarytimerperiod >= primarytimerperiod/2) {
             printf("%s(): Error/Abort - the primary als timer period (%.8f seconds) must be at least twice as long as the secondary period (%.8f seconds)\n",
@@ -980,10 +968,6 @@ static int print_als(int argc, char** argv)
             return 1;
         }
 
-        if (als_args.primarytimer_period->count != 0) {
-            set_als_timer_period(PRIMARY_TIMER, (double ) als_args.primarytimer_period->ival[0]);
-        } 
-        
         if (als_args.secondarytimer_period->count != 0) {
             set_als_timer_period(SECONDARY_TIMER, ((double ) als_args.secondarytimer_period->ival[0])/1000000.0);
         } 
@@ -1026,13 +1010,6 @@ static void register_als()
         "--gettimerperiods", 
         "Show the als timer periods, both primary (seconds) and secondary (microseconds)");
 
-    als_args.primarytimer_period = arg_int0(
-        "p", 
-        "--primary", 
-        "<int>", 
-        "Set the primary als timer period (seconds)");
-
-    
     als_args.secondarytimer_period = arg_int0(
         "s", 
         "--secondary", 
