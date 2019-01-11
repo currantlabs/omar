@@ -88,7 +88,7 @@ void IRAM_ATTR timer_group0_isr(void *para)
        and update the alarm time for the timer with without reload */
     if ((intr_status & BIT(timer_idx)) && timer_idx == OMAR_ALS_PRIMARY_TIMER) {
 
-        evt.type = AUTO_RELOAD_ON;
+        evt.type = timer_idx;
         TIMERG0.int_clr_timers.t0 = 1;
 
         /* After the alarm has been triggered
@@ -100,7 +100,7 @@ void IRAM_ATTR timer_group0_isr(void *para)
         /* Now just send the event data back to the main program task */
 
     } else if ((intr_status & BIT(timer_idx)) && timer_idx == OMAR_ALS_SECONDARY_TIMER) {
-        evt.type = AUTO_RELOAD_OFF;
+        evt.type = timer_idx;
         TIMERG0.int_clr_timers.t1 = 1;
 
         evt.als_reading = als_raw();
@@ -222,7 +222,7 @@ static void timer_example_evt_task(void *arg)
         }
 
         /* Print information that the timer reported an event */
-        if (evt.type == AUTO_RELOAD_ON) {
+        if (evt.type == OMAR_ALS_PRIMARY_TIMER) {
             /* Turn the LEDs off, and arm the secondary timer 
              * to read the als adc after a short delay of
              * OMAR_ALS_SECONDARY_INTERVAL:
@@ -234,7 +234,7 @@ static void timer_example_evt_task(void *arg)
             printf("\t\t\t\t\t\t\t\t<primary>\n");
 
         
-        } else if (evt.type == AUTO_RELOAD_OFF) {
+        } else if (evt.type == OMAR_ALS_SECONDARY_TIMER) {
             // Print out the als reading taken inside the timer interrupt:
             printf("\t\t\t\t\t\t\t\t[als=%d]\n", evt.als_reading);
         } else {
