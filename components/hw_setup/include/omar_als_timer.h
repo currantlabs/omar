@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#define NANOSECOND                  (1e-9)
+
 #define OMAR_ALS_TIMER_GROUP        (TIMER_GROUP_0)
 
 /*
