@@ -325,11 +325,13 @@ void led_set_brightness(uint8_t led, uint32_t duty)
     ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
 
 
+#if defined(HW_SETUP_VERBOSE)
     printf("%s(): Set the duty cycle of led #%d to %d (hpoint is now %d)\n", 
            __func__,
            ch,
            duty,
            ledc_get_hpoint(ledc_channel[ch].speed_mode, ledc_channel[ch].channel));
+#endif
 
 }
 
