@@ -22,8 +22,8 @@
 // Enable OMAR_ALS_TIMER_VERBOSE to see lots of debug spew
 //#define OMAR_ALS_TIMER_VERBOSE
 
-static void pause_led_pwm(uint32_t timer_sel);
-static void resume_led_pwm(uint32_t timer_sel);
+static void pause_led_pwm(void);
+static void resume_led_pwm(void);
 static void timer_example_evt_task(void *arg);
 
 #define TIMER_DIVIDER         16  //  Hardware timer clock divider
@@ -105,12 +105,6 @@ void IRAM_ATTR timer_group0_isr(void *para)
 
         evt.als_reading = als_raw();
 
-        /* Once you've got your reading,
-         * re-enable the pwm led controller
-         * so the lights turn on again:
-         */
-        resume_led_pwm(OMAR_LEDC_TIMER);
-
         /* The secondary timer is a "one-shot" timer, so don't
            enable it again here */
 
@@ -171,32 +165,26 @@ void timer_setup(void)
     xTaskCreate(timer_example_evt_task, "timer_evt_task", 2048, NULL, 5, NULL);
 }
 
-static void pause_led_pwm(uint32_t timer_sel)
-{
-    ledc_mode_t speed_mode = OMAR_LEDC_SPEED_MODE;
-
-    if (ledc_timer_pause(speed_mode, timer_sel) != ESP_OK) {
-        printf("\t\t\t\t\t\t\t\t%s(): ledc_timer_pause(%d, %d) errored\n", 
-               __func__,
-               speed_mode,
-               timer_sel);
-    }
-
+typedef struct {
+    uint32_t led0_dutycycle;
+    uint32_t led1_dutycycle;
+} led_dutycycle_state_t;
     
+static led_dutycycle_state_t led_state = {0, 0};
+
+static void pause_led_pwm(void)
+{
+    led_state.led0_dutycycle = led_get_brightness(OMAR_WHITE_LED0);
+    led_state.led1_dutycycle = led_get_brightness(OMAR_WHITE_LED1);
+
+    led_set_brightness(OMAR_WHITE_LED0, 0);
+    led_set_brightness(OMAR_WHITE_LED1, 0);
 }
 
-static void resume_led_pwm(uint32_t timer_sel)
+static void resume_led_pwm(void)
 {
-    ledc_mode_t speed_mode = OMAR_LEDC_SPEED_MODE;
-
-    if (ledc_timer_resume(speed_mode, timer_sel) != ESP_OK) {
-        printf("\t\t\t\t\t\t\t\t%s(): ledc_timer_resume(%d, %d) errored\n", 
-               __func__,
-               speed_mode,
-               timer_sel);
-    }
-
-    
+    led_set_brightness(OMAR_WHITE_LED0, led_state.led0_dutycycle);
+    led_set_brightness(OMAR_WHITE_LED1, led_state.led1_dutycycle);
 }
 
 static void timer_example_evt_task(void *arg)
@@ -227,7 +215,7 @@ static void timer_example_evt_task(void *arg)
              * to read the als adc after a short delay of
              * OMAR_ALS_SECONDARY_INTERVAL:
              */
-            pause_led_pwm(OMAR_LEDC_TIMER);
+            pause_led_pwm();
 
             omar_als_timer_init(OMAR_ALS_SECONDARY_TIMER, AUTO_RELOAD_OFF, OMAR_ALS_SECONDARY_INTERVAL);
             timer_start(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SECONDARY_TIMER);
@@ -235,6 +223,13 @@ static void timer_example_evt_task(void *arg)
 
         
         } else if (evt.type == OMAR_ALS_SECONDARY_TIMER) {
+
+            /* Once you've got your reading,
+             * re-enable the pwm led controller
+             * so the lights turn on again:
+             */
+            resume_led_pwm();
+
             // Print out the als reading taken inside the timer interrupt:
             printf("\t\t\t\t\t\t\t\t[als=%d]\n", evt.als_reading);
         } else {
