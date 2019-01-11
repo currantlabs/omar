@@ -7,6 +7,7 @@
 
 
 #include <stdio.h>
+#include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -56,6 +57,46 @@ void set_als_timer_period(als_timer_t timer, double period)
     if (period < 0) {
         period *= -1.0;
     }
+
+
+    double primarytimerperiod =
+        (timer == PRIMARY_TIMER
+          ?
+         period
+         :
+         timer_periods[PRIMARY_TIMER]);
+          
+
+    double secondarytimerperiod =
+        (timer == SECONDARY_TIMER
+          ?
+         period
+         :
+         timer_periods[SECONDARY_TIMER]);
+          
+
+    if (secondarytimerperiod >= primarytimerperiod/2.0) {
+        printf("%s(): Error/Abort - the primary als timer period (%.8f seconds) must be at least twice as long as the secondary period (%.8f seconds)\n",
+               __func__,
+               primarytimerperiod,
+               secondarytimerperiod);
+
+        return;
+    }
+
+    if (fabs(period) <= NANOSECOND) {
+        printf("%s(): Aborting call for timer %d because the interval is too short: %0.12f seconds\n",
+               __func__,
+               timer,
+               period);
+
+        return;
+    }
+
+    printf("\n%s(): Setting %s period to %0.8f seconds\n",
+           __func__,
+           (timer == PRIMARY_TIMER ? "primary timer" : "secondary timer"),
+           period);
 
 
     timer_periods[timer] = period;
@@ -151,6 +192,15 @@ void IRAM_ATTR timer_group0_isr(void *para)
 static void omar_als_timer_init(int timer_idx, 
     bool auto_reload, double timer_interval_sec)
 {
+
+    if (fabs(timer_interval_sec) <= NANOSECOND) {
+        printf("%s(): Aborting call for timer %d because the interval is too short: %0.12f seconds\n",
+               __func__,
+               timer_idx,
+               timer_interval_sec);
+        return;
+    }
+
     /* Select and initialize basic parameters of the timer */
     timer_config_t config;
     config.divider = TIMER_DIVIDER;
@@ -256,6 +306,10 @@ static void timer_example_evt_task(void *arg)
 
             // Print out the als reading taken inside the timer interrupt:
             printf("\t\t\t\t\t\t\t\t[als=%d]\n", evt.als_reading);
+
+            // Pause the secondary timer:
+            timer_pause(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SECONDARY_TIMER);
+            
         } else {
             printf("\n\t\t\t\t\t\t\t\t  UNKNOWN EVENT TYPE\n");
         }

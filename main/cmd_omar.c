@@ -919,17 +919,79 @@ static int print_als(int argc, char** argv)
         return 0;
     }
 
-    // If you're not enabling or disabling the timer-driven
-    // als sampling, just dump the current als value:
+    // If you're not enabling/disabling/setting anything
+    // just dump the current als value:
     if (als_args.timer_off->count == 0
         &&
-        als_args.timer_on->count == 0) {
+        als_args.timer_on->count == 0
+        &&
+        als_args.primarytimer_period->count == 0
+        &&
+        als_args.secondarytimer_period->count == 0) {
         int adc = als_raw();
 
         printf("Ambient light sensor reading is %d (0x%02x)\n", 
                adc, adc);
         return 0;
     }
+
+    // Next handl the case of setting either of the ambient
+    // light sensor timer periods:
+    if (als_args.primarytimer_period->count != 0
+        ||
+        als_args.secondarytimer_period->count != 0) {
+
+        if (als_args.timer_off->count != 0
+            ||
+            als_args.timer_on->count != 0) {
+
+            printf("%s(): The \"--enable\" and \"--disable\" options aren't allowed when setting either of the ambient light sensor periods\n", __func__);
+               
+            return 1;
+        }
+        
+        // Because the primary timer kicks off the secondary timer,
+        // its period must be greater than that of the secondary timer.
+        // So check this first...
+
+        double secondarytimerperiod = 
+            (als_args.secondarytimer_period->count != 0 
+             ? 
+             (double ) (als_args.secondarytimer_period->ival[0]/1000000.0)
+             :
+             get_als_timer_period(SECONDARY_TIMER));
+
+
+        double primarytimerperiod = 
+            (als_args.primarytimer_period->count != 0 
+             ? 
+             ((double ) als_args.primarytimer_period->ival[0])
+             :
+             get_als_timer_period(PRIMARY_TIMER));
+
+
+
+        if (secondarytimerperiod >= primarytimerperiod/2) {
+            printf("%s(): Error/Abort - the primary als timer period (%.8f seconds) must be at least twice as long as the secondary period (%.8f seconds)\n",
+                   __func__,
+                   primarytimerperiod,
+                   secondarytimerperiod);
+
+            return 1;
+        }
+
+        if (als_args.primarytimer_period->count != 0) {
+            set_als_timer_period(PRIMARY_TIMER, (double ) als_args.primarytimer_period->ival[0]);
+        } 
+        
+        if (als_args.secondarytimer_period->count != 0) {
+            set_als_timer_period(SECONDARY_TIMER, ((double ) als_args.secondarytimer_period->ival[0])/1000000.0);
+        } 
+        
+
+        return 0;
+
+    }   
 
     // You can't disable and enable at the same time:
     if (als_args.timer_off->count != 0
