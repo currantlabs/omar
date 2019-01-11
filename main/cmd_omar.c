@@ -786,11 +786,6 @@ static int led_pwm(int argc, char** argv)
             new_duty_cycle = ledpwm_args.setduty->ival[0];
             led_set_brightness(led_gpio, new_duty_cycle);
 
-            printf("%s(): %s's new duty cycle is %d\n",
-                   __func__,
-                   (led == 1 ? "OMAR_WHITE_LED0" : "OMAR_WHITE_LED1"),
-                   led_get_brightness(led_gpio));
-
         }
 
     } else {
