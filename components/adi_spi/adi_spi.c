@@ -621,7 +621,7 @@ void lcd_get_id(void)
 
     memset(&t, 0, sizeof(t));       //Zero out the transaction
     t.length=40;                     //Command is 24 bits
-    t.tx_buffer=&cmd;               //The data is the cmd itself
+    t.tx_buffer=cmd;                //The data is the cmd itself
     t.rx_buffer=miso;               //The data is the cmd itself
     t.user=(void*)0;                //D/C needs to be set to 0
     ret=spi_device_polling_transmit(m_spi_master, &t);  //Transmit!
