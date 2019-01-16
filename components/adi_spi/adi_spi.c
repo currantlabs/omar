@@ -597,27 +597,27 @@ static void lcd_cmd(spi_device_handle_t spi, const uint8_t cmd)
 void lcd_get_id(void)
 {
 
-	// This is the code that gave me a decent-looking
-	// spi signal capture on the Saleae: git commit 80c69d9:
+    // This is the code that gave me a decent-looking
+    // spi signal capture on the Saleae: git commit 80c69d9:
 #ifdef REPEAT_SUCCESS_OF_COMMIT_80c69d9
-	
+    
     //get_id cmd
     lcd_cmd(m_spi_master, 0x04);
 
 #endif //REPEAT_SUCCESS_OF_COMMIT_80c69d9
 
 
-	// Now I'm trying the same approach to implement
-	// the guts of the proposition adi_spi.c routine:
-	//
-	// test()
-	//
-	// Here we go:
+    // Now I'm trying the same approach to implement
+    // the guts of the proposition adi_spi.c routine:
+    //
+    // test()
+    //
+    // Here we go:
 
     esp_err_t ret;
     spi_transaction_t t;
-	uint8_t cmd[] = {0x01, 0x02, 0x80};
-	uint8_t miso[5] = {0};
+    uint8_t cmd[] = {0x01, 0x02, 0x80};
+    uint8_t miso[5] = {0};
 
     memset(&t, 0, sizeof(t));       //Zero out the transaction
     t.length=40;                     //Command is 24 bits
@@ -629,12 +629,54 @@ void lcd_get_id(void)
 
     printf("CONFIG REGISTER: {0x%02x, 0x%02x}\n", miso[3], miso[4]);
 
-	if (miso[3] == 0x80 && miso[4] == 0x04) {
-		printf("[OK]\n");
-	} else {
-		printf("[FAILED]\n");
-	}
+    if (miso[3] == 0x80 && miso[4] == 0x04) {
+        printf("[OK]\n");
+    } else {
+        printf("[FAILED]\n");
+    }
 }
+
+uint32_t spi_read_reg(SpiCmdNameT reg, uint8_t *buff)
+{
+
+    SpiCmdT cmd = m_spi_commands[reg];
+
+    uint16_t len = cmd.pkt_size;
+    uint8_t *p_tx_data = cmd.pkt;
+
+    memset(m_rx_data, 0, sizeof(m_rx_data));
+
+    // Indicate that this is a "read" command:
+    // (See: ade7953.pdf, page 52, "Figure 68. SPI Read")
+    p_tx_data[2] = SPI_READ;
+
+    esp_err_t ret;
+    spi_transaction_t t;
+    memset(&t, 0, sizeof(t));       //Zero out the transaction
+
+    t.length=len*8;                 //"len", the number of bytes, must be converted to bits
+    t.tx_buffer=p_tx_data;          //The data is the cmd itself
+    t.rx_buffer=m_rx_data;          //The data is the cmd itself
+    t.user=(void*)0;                //D/C needs to be set to 0
+    ret=spi_device_polling_transmit(m_spi_master, &t);  //Transmit!
+    assert(ret==ESP_OK);            //Should have had no issues.
+
+    // The amount of data read will be returned in
+    // t.rxlength - keep in mind that t.rxlength tells
+    // us how many bits were read, so we need to convert
+    // to bytes
+    uint8_t rxbytes = (t.rxlength >> 3);    // convert bits to bytes
+    printf("\n%s(): read %d bytes\n", __func__, rxbytes);
+    memcpy(buff, m_rx_data + 3, rxbytes - 3);
+    
+    if (rxbytes < 3) {
+      return 0;
+    } else {
+      return rxbytes - 3;
+    }
+
+}
+
 
 //called after a hardware reset, to reinitialize chip to a known state
 int adi_spi_reinit(void)
@@ -714,7 +756,7 @@ static esp_err_t local_spi_device_polling_transmit(spi_device_handle_t handle, s
 
     return ESP_OK;
 }
-	
+    
 
 static void spi_send_recv(SpiCmdNameT send_cmd, uint8_t *data)
 {
@@ -830,6 +872,7 @@ static void spi_send_recv(SpiCmdNameT send_cmd, uint8_t *data)
  * NOTE: buff must be large enough for register being read;
  * i.e., 4 bytes, for 32-bit registers.
  */
+#ifdef NEWDAY_IMPLEMENTATION
 uint32_t spi_read_reg(SpiCmdNameT reg, uint8_t *buff)
 {
 
@@ -837,7 +880,7 @@ uint32_t spi_read_reg(SpiCmdNameT reg, uint8_t *buff)
 
     //TESTING!!
     if (!m_transfer_completed) {
-		printf("%s(): 02\n", __func__);
+        printf("%s(): 02\n", __func__);
         return -1;
     }
     printf("%s(): 03\n", __func__);
@@ -849,6 +892,8 @@ uint32_t spi_read_reg(SpiCmdNameT reg, uint8_t *buff)
     printf("%s(): 05\n", __func__);
     return m_last_read_cmd.pkt_size - 3;
 }
+#endif //NEWDAY_IMPLEMENTATION
+
 
 /*
  * spi_write_reg - writes data into the specified register.

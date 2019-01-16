@@ -1087,7 +1087,26 @@ static int ad7953(int argc, char** argv)
         adi_hw_reset();
         ESP_LOGI(__func__, "performed a hardware reset");
     } else if (strcmp(cmd, "test") == 0) {
+        printf("OLDE WAY\r\n");
         lcd_get_id(); 
+        vTaskDelay(10/portTICK_PERIOD_MS);
+        printf("NEW WAY\r\n");
+
+        uint8_t rxbuf[8];
+        uint8_t rxlen = spi_read_reg(CONFIG, rxbuf);
+
+        if (rxlen > 5) {
+            printf("%s(): spi_read_reg() returned bad rxlen of %d\n", __func__, rxlen);
+        } else {
+            printf("\r\n");
+            for (int i=0; i<rxlen; i++) {
+                printf("0x%02x ", rxbuf[i]);
+            }
+            printf("\r\n");
+        }
+
+
+
     } else {
         ESP_LOGI(__func__, "'%s' is not a recognized AD7953 command - please enter either \"hwreset\" or \"swreset\"",
                  cmd);
