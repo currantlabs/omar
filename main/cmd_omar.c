@@ -1105,6 +1105,45 @@ static int ad7953(int argc, char** argv)
             printf("\r\n");
         }
 
+        vTaskDelay(10/portTICK_PERIOD_MS);
+
+        // Next, read the value of the AWGAIN register:
+        rxlen = spi_read_reg(AWGAIN, rxbuf);
+        if (rxlen > 5) {
+            printf("%s(): spi_read_reg() returned bad rxlen of %d\n", __func__, rxlen);
+        } else {
+            printf("\r\n");
+            printf("AWGAIN register: ");
+            for (int i=0; i<rxlen; i++) {
+                printf("0x%02x ", rxbuf[i]);
+            }
+            printf("\r\n");
+        }
+
+        vTaskDelay(10/portTICK_PERIOD_MS);
+
+        // Now, write something to AWGAIN
+        uint8_t txbuf[] = {0x1a, 0xdd, 0xad};
+        printf("Writing {0x%02x, 0x%02x, 0x%02x} to AWGAIN register...\n",
+               txbuf[0], txbuf[1], txbuf[2]);
+        spi_write_reg(AWGAIN, txbuf);
+
+        vTaskDelay(10/portTICK_PERIOD_MS);
+
+        // And finally, read it out again:
+        rxlen = spi_read_reg(AWGAIN, rxbuf);
+        if (rxlen > 5) {
+            printf("%s(): spi_read_reg() returned bad rxlen of %d\n", __func__, rxlen);
+        } else {
+            printf("\r\n");
+            printf("AWGAIN register: ");
+            for (int i=0; i<rxlen; i++) {
+                printf("0x%02x ", rxbuf[i]);
+            }
+            printf("\r\n");
+        }
+
+
 
 
     } else {

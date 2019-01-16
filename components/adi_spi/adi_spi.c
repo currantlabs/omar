@@ -677,6 +677,41 @@ uint32_t spi_read_reg(SpiCmdNameT reg, uint8_t *buff)
 
 }
 
+void spi_write_reg(SpiCmdNameT reg, uint8_t *buff)
+{
+    SpiCmdT cmd = m_spi_commands[reg];
+
+    uint16_t len = cmd.pkt_size;
+    uint8_t *p_tx_data = cmd.pkt;
+
+    memset(m_rx_data, 0, sizeof(m_rx_data));
+
+    // Indicate that this is a "write" command:
+    // (See: ade7953.pdf, page 52, "Figure 69. SPI Write")
+    p_tx_data[2] = SPI_WRITE;
+
+    // Next, copy the data to be written:
+    memcpy(p_tx_data + 3, buff, len - 3);
+
+    esp_err_t ret;
+    spi_transaction_t t;
+    memset(&t, 0, sizeof(t));       //Zero out the transaction
+    t.length=len*8;                 //Convert the length from bytes to bits
+    t.tx_buffer=p_tx_data;          //The data is the cmd itself
+    t.user=(void*)0;                //D/C needs to be set to 0
+    ret=spi_device_polling_transmit(m_spi_master, &t);  //Transmit!
+    assert(ret==ESP_OK);            //Should have had no issues.
+
+    // The amount of data read will be returned in
+    // t.rxlength - keep in mind that t.rxlength tells
+    // us how many bits were read, so we need to convert
+    // to bytes
+    uint8_t rxbytes = (t.rxlength >> 3);    // convert bits to bytes
+    printf("\n%s(): read %d bytes\n", __func__, rxbytes);
+
+}
+
+
 
 //called after a hardware reset, to reinitialize chip to a known state
 int adi_spi_reinit(void)
@@ -745,6 +780,7 @@ int set_pgagain(uint8_t gain)
     return 0;
 }
 
+#ifdef NOWAY
 static esp_err_t local_spi_device_polling_transmit(spi_device_handle_t handle, spi_transaction_t* trans_desc)
 {
     esp_err_t ret;
@@ -862,6 +898,7 @@ static void spi_send_recv(SpiCmdNameT send_cmd, uint8_t *data)
 #endif // NOWAY
 
 }
+#endif // NOWAY
 
 /*
  * spi_read_reg - read data from specified register into provided buff.
@@ -895,6 +932,7 @@ uint32_t spi_read_reg(SpiCmdNameT reg, uint8_t *buff)
 #endif //NEWDAY_IMPLEMENTATION
 
 
+#ifdef NOWAY
 /*
  * spi_write_reg - writes data into the specified register.
  *
@@ -905,7 +943,7 @@ void spi_write_reg(SpiCmdNameT reg, uint8_t *buff)
     spi_send_recv(reg, buff);
     while (!m_transfer_completed) {};
 }
-
+#endif //NOWAY
 
 char *get_reg_name(SpiCmdNameT reg)
 {
