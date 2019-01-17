@@ -646,7 +646,7 @@ static void register_eeprom()
     eeprom_args.erase = arg_lit0(
         "e", 
         "erase", 
-        "Set all 1024 bytes of eeprom memory to 0xff");
+        "Set all 1024 bytes of eeprom memory to 0x00");
 
     eeprom_args.blast = arg_lit0(
         "b", 
