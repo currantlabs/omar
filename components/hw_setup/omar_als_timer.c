@@ -170,6 +170,9 @@ void IRAM_ATTR timer_group0_isr(void *para)
 
         /* Now just send the event data back to the main program task */
 
+        xQueueSendFromISR(timer_queue, &evt, NULL);
+
+
     } else if ((intr_status & BIT(timer_idx)) && timer_idx == OMAR_ALS_SECONDARY_TIMER) {
 
         if (als_sample_mode) {
@@ -184,10 +187,13 @@ void IRAM_ATTR timer_group0_isr(void *para)
                 als_sample_mode = false;
 
                 // We've taken all the sample, prepare the event:
-                evt.type = ALS_SAMPLE_TIMER;
+                evt.type = 42;
 
                 // Pause the als sample timer:
                 timer_pause(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SAMPLER_TIMER);
+
+                xQueueSendFromISR(timer_queue, &evt, NULL);
+
             }
 
 
@@ -201,13 +207,16 @@ void IRAM_ATTR timer_group0_isr(void *para)
 
             /* The secondary timer is a "one-shot" timer, so don't
                enable it again here */
+
+
+            xQueueSendFromISR(timer_queue, &evt, NULL);
+
         }
 
     } else {
         evt.type = -1; // not supported even type
     }
 
-    xQueueSendFromISR(timer_queue, &evt, NULL);
 
 
 }
@@ -389,9 +398,9 @@ static void timer_example_evt_task(void *arg)
             // Pause the secondary timer:
             timer_pause(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SECONDARY_TIMER);
             
-        } else if (evt.type == ALS_SAMPLE_TIMER) {
+        } else if (evt.type == 42) {
             // The sampling of als output is finished, print the report:
-            hexdump_als_samples();
+          printf("%s(): Ambient light sensor sampling finished\n", __func__) ;
         } else {
             printf("\n\t\t\t\t\t\t\t\t  UNKNOWN EVENT TYPE\n");
         }
