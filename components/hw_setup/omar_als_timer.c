@@ -7,6 +7,7 @@
 
 
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -189,8 +190,6 @@ void IRAM_ATTR timer_group0_isr(void *para)
                 // We've taken all the sample, prepare the event:
                 evt.type = 42;
 
-                // Pause the als sample timer:
-                timer_pause(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SAMPLER_TIMER);
 
                 xQueueSendFromISR(timer_queue, &evt, NULL);
 
@@ -270,6 +269,9 @@ void start_als_sample_capture(void)
         return;
     }
 
+    // Clear out the sample array first:
+    memset(als_sample_array, 0xff, sizeof(als_sample_array));
+
     als_sample_mode = true;
     als_sample_count = 0;
 
@@ -299,14 +301,20 @@ static void hexdump_als_samples(void)
     
 }
 
-void report_als_samples(void)
+void report_als_samples(als_backroundsample_reportformat_t format)
 {
     if (als_sample_mode) {
         printf("%s(): Still taking als samples...\n", __func__);
         return;
     }
 
-    hexdump_als_samples();
+    if (format == SINGLECOLUMNDECIMAL_REPORT_FORMAT) {
+      for (int i=0; i<ALS_SAMPLE_COUNT; i++) {
+        printf("%d\n", als_sample_array[i]);
+      }
+    } else {
+      hexdump_als_samples();
+    }
     
 
 }
@@ -401,6 +409,11 @@ static void timer_example_evt_task(void *arg)
         } else if (evt.type == 42) {
             // The sampling of als output is finished, print the report:
           printf("%s(): Ambient light sensor sampling finished\n", __func__) ;
+
+          // Pause the als sample timer:
+          timer_pause(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SAMPLER_TIMER);
+
+
         } else {
             printf("\n\t\t\t\t\t\t\t\t  UNKNOWN EVENT TYPE\n");
         }

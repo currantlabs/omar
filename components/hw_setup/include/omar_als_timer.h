@@ -54,10 +54,12 @@
 #define OMAR_ALS_SECONDARY_INTERVAL (0.0001) 
 
 /*
- * To support grapping 2.5 seconds' worth of samples:
+ * To support grabbing a few seconds' worth of samples:
  */
-#define ALS_SAMPLE_COUNT            (1024)
+#define ALS_SAMPLE_COUNT            (4096)
 #define OMAR_ALS_SAMPLER_TIMER      (TIMER_1)
+
+// 2.083 milliseconds is 1/8 of a single 60Hz period:
 #define OMAR_ALS_SAMPLER_INTERVAL   (0.002083)
 
 typedef enum {
@@ -74,4 +76,11 @@ double get_als_timer_period(als_timer_t timer);
 
 // apis for starting an als sample capture session, reporting results:
 void start_als_sample_capture(void);
-void report_als_samples(void);
+
+typedef enum {
+    HEXDUMP_REPORT_FORMAT = 0,
+    SINGLECOLUMNDECIMAL_REPORT_FORMAT
+} als_backroundsample_reportformat_t;
+
+void report_als_samples(als_backroundsample_reportformat_t format);
+
