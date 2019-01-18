@@ -51,12 +51,19 @@
  * to the naked eye.
  */
 #define OMAR_ALS_SECONDARY_TIMER    (TIMER_1)
-#define OMAR_ALS_SECONDARY_INTERVAL (0.0001) // 100 usecs; no flicker, but light levels aren't dropping
+#define OMAR_ALS_SECONDARY_INTERVAL (0.0001) 
 
+/*
+ * To support grapping 2.5 seconds' worth of samples:
+ */
+#define ALS_SAMPLE_COUNT            (512)
+#define OMAR_ALS_SAMPLER_TIMER      (TIMER_1)
+#define OMAR_ALS_SAMPLER_INTERVAL   (0.005)
 
 typedef enum {
     PRIMARY_TIMER = 0,
-    SECONDARY_TIMER
+    SECONDARY_TIMER,
+    ALS_SAMPLE_TIMER
 } als_timer_t;
 
 
@@ -64,3 +71,7 @@ void timer_setup(void); // initialize the timer, and a task to process timer eve
 void enable_als_timer(bool on); // if "on" is true call "timer_start()", else "timer_pause()"
 void set_als_timer_period(als_timer_t timer, double period);
 double get_als_timer_period(als_timer_t timer);
+
+// apis for starting an als sample capture session, reporting results:
+void start_als_sample_capture(void);
+void report_als_samples(void);

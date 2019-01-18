@@ -26,6 +26,7 @@
 static void pause_led_pwm(void);
 static void resume_led_pwm(void);
 static void timer_example_evt_task(void *arg);
+static void hexdump_als_samples(void);
 
 #define TIMER_DIVIDER         16  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
@@ -46,9 +47,14 @@ typedef struct {
 xQueueHandle timer_queue;
 
 static double timer_periods[] = {
-    OMAR_ALS_PRIMARY_INTERVAL,  // in units of SECONDS
-    OMAR_ALS_SECONDARY_INTERVAL // in units of MICROSECONDS
+    OMAR_ALS_PRIMARY_INTERVAL,  
+    OMAR_ALS_SECONDARY_INTERVAL,
+    OMAR_ALS_SAMPLER_INTERVAL
 };
+
+static bool als_sample_mode = false;
+static uint32_t als_sample_count = 0;
+static int als_sample_array[ALS_SAMPLE_COUNT] = {-1};
 
 void set_als_timer_period(als_timer_t timer, double period)
 {
@@ -165,13 +171,37 @@ void IRAM_ATTR timer_group0_isr(void *para)
         /* Now just send the event data back to the main program task */
 
     } else if ((intr_status & BIT(timer_idx)) && timer_idx == OMAR_ALS_SECONDARY_TIMER) {
-        evt.type = timer_idx;
-        TIMERG0.int_clr_timers.t1 = 1;
 
-        evt.als_reading = als_raw();
+        if (als_sample_mode) {
+            
+            if (als_sample_count < ALS_SAMPLE_COUNT) {
+                als_sample_array[als_sample_count++] = als_raw();
 
-        /* The secondary timer is a "one-shot" timer, so don't
-           enable it again here */
+                // Re-enable the alarm since we've still got samples to take
+                TIMERG0.hw_timer[timer_idx].config.alarm_en = TIMER_ALARM_EN;
+            } else {
+                // Disable the sampling:
+                als_sample_mode = false;
+
+                // We've taken all the sample, prepare the event:
+                evt.type = ALS_SAMPLE_TIMER;
+
+                // Pause the als sample timer:
+                timer_pause(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SAMPLER_TIMER);
+            }
+
+
+
+        } else {
+
+            evt.type = timer_idx;
+            TIMERG0.int_clr_timers.t1 = 1;
+
+            evt.als_reading = als_raw();
+
+            /* The secondary timer is a "one-shot" timer, so don't
+               enable it again here */
+        }
 
     } else {
         evt.type = -1; // not supported even type
@@ -220,6 +250,55 @@ static void omar_als_timer_init(int timer_idx,
     timer_enable_intr(OMAR_ALS_TIMER_GROUP, timer_idx);
     timer_isr_register(OMAR_ALS_TIMER_GROUP, timer_idx, timer_group0_isr, 
         (void *) timer_idx, ESP_INTR_FLAG_IRAM, NULL);
+
+}
+
+void start_als_sample_capture(void)
+{
+
+    if (als_sample_mode) {
+        printf("%s(): Already taking als samples...\n", __func__);
+        return;
+    }
+
+    als_sample_mode = true;
+    als_sample_count = 0;
+
+    // Start the timer!
+    omar_als_timer_init(OMAR_ALS_SECONDARY_TIMER, 
+                        AUTO_RELOAD_ON, 
+                        get_als_timer_period(ALS_SAMPLE_TIMER));
+
+
+    timer_start(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SAMPLER_TIMER);
+}
+
+static void hexdump_als_samples(void)
+{
+    int address = 0;
+
+    for (int i=0; i<=ALS_SAMPLE_COUNT/16; i++) {
+        if (i*16 == ALS_SAMPLE_COUNT) {
+            break;
+        }
+        printf("0x%04x: ", address + i*16);
+        for (int j=0; i*16+j < ALS_SAMPLE_COUNT && j < 16; j++) {
+            printf("0x%02x ", als_sample_array[i*16+j]);
+        }
+        printf("\n");
+    }
+    
+}
+
+void report_als_samples(void)
+{
+    if (als_sample_mode) {
+        printf("%s(): Still taking als samples...\n", __func__);
+        return;
+    }
+
+    hexdump_als_samples();
+    
 
 }
 
@@ -310,6 +389,9 @@ static void timer_example_evt_task(void *arg)
             // Pause the secondary timer:
             timer_pause(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SECONDARY_TIMER);
             
+        } else if (evt.type == ALS_SAMPLE_TIMER) {
+            // The sampling of als output is finished, print the report:
+            hexdump_als_samples();
         } else {
             printf("\n\t\t\t\t\t\t\t\t  UNKNOWN EVENT TYPE\n");
         }

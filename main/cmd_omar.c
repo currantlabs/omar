@@ -887,6 +887,8 @@ static struct {
     struct arg_lit *timer_on;
     struct arg_lit *display_periods;
     struct arg_int *secondarytimer_period;  // in microseconds
+    struct arg_lit *capture; // Sample for 60Hz noise for a period of seconds
+    struct arg_lit *report; // Dump the contents of memory, showing samples
     struct arg_end *end;
 } als_args;
 
@@ -897,6 +899,21 @@ static int print_als(int argc, char** argv)
         arg_print_errors(stderr, als_args.end, argv[0]);
         return 1;
     }
+
+    // Handle the als "capture/report" case first:
+    if (als_args.capture->count != 0) {
+
+        start_als_sample_capture();
+        return 0;
+    }
+
+    // Handle the als "capture/report" case first:
+    if (als_args.report->count != 0) {
+
+        report_als_samples();
+        return 0;
+    }
+
 
     // Take care of the simpler "dump timer periods" case first:
     if (als_args.display_periods->count != 0) {
@@ -997,26 +1014,36 @@ static void register_als()
 {
     als_args.timer_off = arg_lit0(
         "d", 
-        "--disable", 
+        "disable", 
         "Disables the timer that triggers automatic als sampling");
 
     als_args.timer_on = arg_lit0(
         "e", 
-        "--enable", 
+        "enable", 
         "Enables the timer that triggers automatic als sampling");
 
     als_args.display_periods = arg_lit0(
         "g", 
-        "--gettimerperiods", 
+        "gettimerperiods", 
         "Show the als timer periods, both primary (seconds) and secondary (microseconds)");
 
     als_args.secondarytimer_period = arg_int0(
         "s", 
-        "--secondary", 
+        "secondary", 
         "<int>", 
         "Set the secondary als timer period (microseconds)");
     
-    als_args.end = arg_end(3);
+    als_args.capture = arg_lit0(
+        "c", 
+        "capture", 
+        "Capture 2 seconds worth of ambient light sensor (als) data");
+
+    als_args.report = arg_lit0(
+        "r", 
+        "report", 
+        "Display 2 seconds worth of ambient light sensor (als) data");
+
+    als_args.end = arg_end(5);
 
     const esp_console_cmd_t cmd = {
         .command = "als",
