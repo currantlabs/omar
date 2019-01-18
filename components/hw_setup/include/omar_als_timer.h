@@ -56,9 +56,9 @@
 /*
  * To support grapping 2.5 seconds' worth of samples:
  */
-#define ALS_SAMPLE_COUNT            (512)
+#define ALS_SAMPLE_COUNT            (1024)
 #define OMAR_ALS_SAMPLER_TIMER      (TIMER_1)
-#define OMAR_ALS_SAMPLER_INTERVAL   (0.005)
+#define OMAR_ALS_SAMPLER_INTERVAL   (0.002083)
 
 typedef enum {
     PRIMARY_TIMER = 0,
