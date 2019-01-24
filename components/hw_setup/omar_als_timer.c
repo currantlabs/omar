@@ -183,6 +183,11 @@ void IRAM_ATTR timer_group0_isr(void *para)
 
                 // Re-enable the alarm since we've still got samples to take
                 TIMERG0.hw_timer[timer_idx].config.alarm_en = TIMER_ALARM_EN;
+                evt.type = 43;
+
+
+                xQueueSendFromISR(timer_queue, &evt, NULL);
+
             } else {
                 // Disable the sampling:
                 als_sample_mode = false;
@@ -263,6 +268,12 @@ static void omar_als_timer_init(int timer_idx,
 
 void start_als_sample_capture(void)
 {
+
+	printf("%s(): TIMER_BASE_CLK / TIMER_DIVIDER = (%d / %d)\n", 
+		   __func__,
+		   TIMER_BASE_CLK,
+		   TIMER_DIVIDER);
+
 
     if (als_sample_mode) {
         printf("%s(): Already taking als samples...\n", __func__);
@@ -361,6 +372,7 @@ static void timer_example_evt_task(void *arg)
 {
 
     uint32_t block_time_msec = 250; // block a quarter second so you can pet the watchdog
+	static uint32_t als_samples_sofar = 0;
 
     // Subscribe this task to the TWDT, check to make sure it's subscribed:
     CHECK_ERROR_CODE(esp_task_wdt_add(NULL), ESP_OK);
@@ -406,6 +418,11 @@ static void timer_example_evt_task(void *arg)
             // Pause the secondary timer:
             timer_pause(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SECONDARY_TIMER);
             
+        } else if (evt.type == 43) {
+			als_samples_sofar++;
+			if (als_samples_sofar % 1000 == 0) {
+				printf("\r\n.\r\n");
+			}
         } else if (evt.type == 42) {
             // The sampling of als output is finished, print the report:
           printf("%s(): Ambient light sensor sampling finished\n", __func__) ;
