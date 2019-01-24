@@ -1,450 +1,200 @@
 /* Copyright (c) 2019 Currant Inc. All Rights Reserved.
  *
- * omar_als_timer.c - sets up a timer which fires once a second, turns off the leds briefly
- * and then takes a reading with the ambient light sensor.
+ * omar_als_timer.c - configures a timer to sneak a peek
+ * at the ambient light sensor ("als") once every second.
  *
  */
 
-
 #include <stdio.h>
-#include <string.h>
-#include <math.h>
+#include "esp_types.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
-#include "esp_task_wdt.h"
-#include "driver/ledc.h"
 #include "soc/timer_group_struct.h"
 #include "driver/periph_ctrl.h"
 #include "driver/timer.h"
-#include "esp_err.h"
 #include "hw_setup.h"
 #include "omar_als_timer.h"
 
-// Enable OMAR_ALS_TIMER_VERBOSE to see lots of debug spew
-//#define OMAR_ALS_TIMER_VERBOSE
+#define TIMER_DIVIDER               80                                  
 
-static void pause_led_pwm(void);
-static void resume_led_pwm(void);
-static void timer_example_evt_task(void *arg);
-static void hexdump_als_samples(void);
-
-#define TIMER_DIVIDER         16  //  Hardware timer clock divider
-#define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
-#define AUTO_RELOAD_ON        1 // testing will be done with auto reload
-#define AUTO_RELOAD_OFF       0 // no auto reload
 /*
- * A sample structure to pass events
- * from the timer interrupt handler to the main program.
+ * The timer alternates between 2 alarm periods.
+ * A longer TIMER_PEEK_ALARM period of 1 second,
+ * and a shorter period of TIMER_ALSREAD_ALARM
+ * that waits 250 microseconds to read the 
+ * ambient light sensor after the LEDs are turned
+ * off, to give the output of the ALS time to fall.
+ */ 
+#define TIMER_PEEK_ALARM            (1000000)
+#define TIMER_ALSREAD_ALARM         (250)
+
+/*
+ * Use TIMER_0 from TIMER_GROUP_0:
  */
+#define ALS_TIMER_GROUP             (TIMER_GROUP_0)
+#define ALS_TIMER                   (TIMER_0)
+
+/*
+ * A simple structure to pass events
+ * from the timer interrupt handler to 
+ * the main program.
+ */
+typedef enum {
+    ALS_PEEK_TIMER = 0,
+    ALS_READ_TIMER
+} als_timer_t;
+
 typedef struct {
-    int type;  // the type of timer's event
-    int timer_group;
-    int timer_idx;
+    als_timer_t timer; 
+    int als;
     uint64_t timer_counter_value;
-    int als_reading;
 } timer_event_t;
 
 xQueueHandle timer_queue;
 
-static double timer_periods[] = {
-    OMAR_ALS_PRIMARY_INTERVAL,  
-    OMAR_ALS_SECONDARY_INTERVAL,
-    OMAR_ALS_SAMPLER_INTERVAL
-};
-
-static bool als_sample_mode = false;
-static uint32_t als_sample_count = 0;
-static int als_sample_array[ALS_SAMPLE_COUNT] = {-1};
-
-void set_als_timer_period(als_timer_t timer, double period)
-{
-
-    // Flip negative time periods
-    if (period < 0) {
-        period *= -1.0;
-    }
-
-
-    double primarytimerperiod =
-        (timer == PRIMARY_TIMER
-          ?
-         period
-         :
-         timer_periods[PRIMARY_TIMER]);
-          
-
-    double secondarytimerperiod =
-        (timer == SECONDARY_TIMER
-          ?
-         period
-         :
-         timer_periods[SECONDARY_TIMER]);
-          
-
-    if (secondarytimerperiod >= primarytimerperiod/2.0) {
-        printf("%s(): Error/Abort - the primary als timer period (%.8f seconds) must be at least twice as long as the secondary period (%.8f seconds)\n",
-               __func__,
-               primarytimerperiod,
-               secondarytimerperiod);
-
-        return;
-    }
-
-    if (fabs(period) <= NANOSECOND) {
-        printf("%s(): Aborting call for timer %d because the interval is too short: %0.12f seconds\n",
-               __func__,
-               timer,
-               period);
-
-        return;
-    }
-
-    printf("\n%s(): Setting %s period to %0.8f seconds\n",
-           __func__,
-           (timer == PRIMARY_TIMER ? "primary timer" : "secondary timer"),
-           period);
-
-
-    timer_periods[timer] = period;
-
-}
-
-double get_als_timer_period(als_timer_t timer)
-{
-    return timer_periods[timer];
-}
-
-
-#if defined(OMAR__PRINT_DETAILED_COUNTER_INFO)
 /*
- * A simple helper function to print the raw timer counter value
- * and the counter value converted to seconds
- */
-static void inline print_timer_counter(uint64_t counter_value)
-{
-    printf("\t\t\t\t\t\t\t\tCounter: 0x%08x%08x\n", (uint32_t) (counter_value >> 32),
-                                    (uint32_t) (counter_value));
-    printf("\t\t\t\t\t\t\t\tTime   : %.8f s\n", (double) counter_value / TIMER_SCALE);
-}
-#endif
-
-/*
- * Timer group0 ISR handler
+ * als_timer_isr() ALS timer interrupt handler:
  *
  * Note:
  * We don't call the timer API here because they are not declared with IRAM_ATTR.
  * If we're okay with the timer irq not being serviced while SPI flash cache is disabled,
  * we can allocate this interrupt without the ESP_INTR_FLAG_IRAM flag and use the normal API.
  */
-void IRAM_ATTR timer_group0_isr(void *para)
+void IRAM_ATTR als_timer_isr(void *para)
 {
-    int timer_idx = (int) para;
+    static bool peek_alarm = true;
+    uint64_t next_alarm;
 
     /* Retrieve the interrupt status and the counter value
        from the timer that reported the interrupt */
-    uint32_t intr_status = TIMERG0.int_st_timers.val;
-    TIMERG0.hw_timer[timer_idx].update = 1;
+    TIMERG0.hw_timer[ALS_TIMER].update = 1;
     uint64_t timer_counter_value = 
-        ((uint64_t) TIMERG0.hw_timer[timer_idx].cnt_high) << 32
-        | TIMERG0.hw_timer[timer_idx].cnt_low;
+        ((uint64_t) TIMERG0.hw_timer[ALS_TIMER].cnt_high) << 32
+        | TIMERG0.hw_timer[ALS_TIMER].cnt_low;
 
-    /* Prepare basic event data
-       that will be then sent back to the main program task */
+    /* The counter value as seen now is 1 more than the limit we set, so re-adjust: */
+    timer_counter_value -= 1;
+    
+    /* Prepare to send event data back to main task:*/
     timer_event_t evt;
-    evt.timer_group = 0;
-    evt.timer_idx = timer_idx;
+
+    if (peek_alarm) {
+        evt.timer = ALS_PEEK_TIMER;
+        evt.als = -1;
+        next_alarm = timer_counter_value + TIMER_ALSREAD_ALARM;
+    } else {
+        evt.timer = ALS_READ_TIMER;
+        evt.als = 42;
+        next_alarm = timer_counter_value + TIMER_PEEK_ALARM;
+    }
+
     evt.timer_counter_value = timer_counter_value;
 
-    /* Clear the interrupt
-       and update the alarm time for the timer with without reload */
-    if ((intr_status & BIT(timer_idx)) && timer_idx == OMAR_ALS_PRIMARY_TIMER) {
+    /* Clear the interrupt, and udpate the next alarm time for the timer:*/
+    TIMERG0.int_clr_timers.t0 = 1;
 
-        evt.type = timer_idx;
-        TIMERG0.int_clr_timers.t0 = 1;
+    TIMERG0.hw_timer[ALS_TIMER].alarm_high = (uint32_t) (next_alarm >> 32);
+    TIMERG0.hw_timer[ALS_TIMER].alarm_low = (uint32_t) next_alarm;
 
-        /* After the alarm has been triggered
-           we need enable it again, so it is triggered the next time */
-        TIMERG0.hw_timer[timer_idx].config.alarm_en = TIMER_ALARM_EN;
+    /* The alarm must be re-enabled each time it is triggered:*/
+    TIMERG0.hw_timer[ALS_TIMER].config.alarm_en = TIMER_ALARM_EN;
+    
+    /* Now just send the event data back to the main program task */
+    xQueueSendFromISR(timer_queue, &evt, NULL);
 
-        evt.als_reading = -1; // Flag to show we didn't read the adc here
-
-        /* Now just send the event data back to the main program task */
-
-        xQueueSendFromISR(timer_queue, &evt, NULL);
-
-
-    } else if ((intr_status & BIT(timer_idx)) && timer_idx == OMAR_ALS_SECONDARY_TIMER) {
-
-        if (als_sample_mode) {
-            
-            if (als_sample_count < ALS_SAMPLE_COUNT) {
-                als_sample_array[als_sample_count++] = als_raw();
-
-                // Re-enable the alarm since we've still got samples to take
-                TIMERG0.hw_timer[timer_idx].config.alarm_en = TIMER_ALARM_EN;
-                evt.type = 43;
-
-
-                xQueueSendFromISR(timer_queue, &evt, NULL);
-
-            } else {
-                // Disable the sampling:
-                als_sample_mode = false;
-
-                // We've taken all the sample, prepare the event:
-                evt.type = 42;
-
-
-                xQueueSendFromISR(timer_queue, &evt, NULL);
-
-            }
-
-
-
-        } else {
-
-            evt.type = timer_idx;
-            TIMERG0.int_clr_timers.t1 = 1;
-
-            evt.als_reading = als_raw();
-
-            /* The secondary timer is a "one-shot" timer, so don't
-               enable it again here */
-
-
-            xQueueSendFromISR(timer_queue, &evt, NULL);
-
-        }
-
-    } else {
-        evt.type = -1; // not supported even type
-    }
-
-
-
+    /* Finally, switch the state: */
+    peek_alarm = !peek_alarm;
+    
 }
 
-/*
- * Initialize selected timer of the timer group 0
- *
- * timer_idx - the timer number to initialize
- * auto_reload - should the timer auto reload on alarm?
- * timer_interval_sec - the interval of alarm to set
- */
-static void omar_als_timer_init(int timer_idx, 
-    bool auto_reload, double timer_interval_sec)
+static void als_timer_task(void *arg)
 {
+    while (1) {
+        timer_event_t evt;
+        xQueueReceive(timer_queue, &evt, portMAX_DELAY);
 
-    if (fabs(timer_interval_sec) <= NANOSECOND) {
-        printf("%s(): Aborting call for timer %d because the interval is too short: %0.12f seconds\n",
-               __func__,
-               timer_idx,
-               timer_interval_sec);
-        return;
-    }
+        switch (evt.timer) {
 
-    /* Select and initialize basic parameters of the timer */
+        case ALS_PEEK_TIMER:
+            printf("\r\n%s(): ALS peek timer fired at counter = 0x%08x%08x (%d). ALS = %d.\r\n",
+                   __func__,
+                   (uint32_t) (evt.timer_counter_value >> 32),
+                   (uint32_t) (evt.timer_counter_value),
+                   (uint32_t) (evt.timer_counter_value),
+                   evt.als);
+            break;
+            
+        case ALS_READ_TIMER:
+            printf("\r\n%s(): ALS read timer fired at counter = 0x%08x%08x (%d). ALS = %d.\r\n",
+                   __func__,
+                   (uint32_t) (evt.timer_counter_value >> 32),
+                   (uint32_t) (evt.timer_counter_value),
+                   (uint32_t) (evt.timer_counter_value),
+                   evt.als);
+            break;
+            
+        default:
+            printf("\r\n%s(): Uknown als timer event type: 0x%02x\r\n",
+                   __func__,
+                   evt.timer);
+            break;
+            
+        }
+    }   
+}
+
+
+xQueueHandle timer_queue;
+
+
+static void als_timer_init(void)
+{
     timer_config_t config;
     config.divider = TIMER_DIVIDER;
     config.counter_dir = TIMER_COUNT_UP;
     config.counter_en = TIMER_PAUSE;
     config.alarm_en = TIMER_ALARM_EN;
     config.intr_type = TIMER_INTR_LEVEL;
-    config.auto_reload = auto_reload;
-    timer_init(OMAR_ALS_TIMER_GROUP, timer_idx, &config);
+    config.auto_reload = false;
+    timer_init(ALS_TIMER_GROUP, ALS_TIMER, &config);
 
-    /* Timer's counter will initially start from value below.
-       Also, if auto_reload is set, this value will be automatically reload on alarm */
-    timer_set_counter_value(OMAR_ALS_TIMER_GROUP, timer_idx, 0x00000000ULL);
+    // Configure to count up from 0:
+    timer_set_counter_value(ALS_TIMER_GROUP, ALS_TIMER, 0);
 
-    /* Configure the alarm value and the interrupt on alarm. */
-    timer_set_alarm_value(OMAR_ALS_TIMER_GROUP, timer_idx, timer_interval_sec * TIMER_SCALE);
-    timer_enable_intr(OMAR_ALS_TIMER_GROUP, timer_idx);
-    timer_isr_register(OMAR_ALS_TIMER_GROUP, timer_idx, timer_group0_isr, 
-        (void *) timer_idx, ESP_INTR_FLAG_IRAM, NULL);
+    // Initially, the alarm is set for 1 second;
+    // once the alarm fires, we'll re-set the alarm
+    // value for the much shorter 250 usec ALS
+    // read interval:
+    timer_set_alarm_value(ALS_TIMER_GROUP, ALS_TIMER, TIMER_PEEK_ALARM);
+
+    timer_isr_register(ALS_TIMER_GROUP, ALS_TIMER, als_timer_isr, 
+        NULL, ESP_INTR_FLAG_IRAM, NULL);
+    timer_enable_intr(ALS_TIMER_GROUP, ALS_TIMER);
+
+    // Defer calling "timer_start(ALS_TIMER_GROUP, ALS_TIMER);"
+    // till later. Use the "enable_als_timer()" api for that
+    // (this api can also pause things)
 
 }
 
-void start_als_sample_capture(void)
+/*
+ * Functions exported via omar_als_timer.h:
+ */
+
+void timer_setup(void)
 {
-
-	printf("%s(): TIMER_BASE_CLK / TIMER_DIVIDER = (%d / %d)\n", 
-		   __func__,
-		   TIMER_BASE_CLK,
-		   TIMER_DIVIDER);
-
-
-    if (als_sample_mode) {
-        printf("%s(): Already taking als samples...\n", __func__);
-        return;
-    }
-
-    // Clear out the sample array first:
-    memset(als_sample_array, 0xff, sizeof(als_sample_array));
-
-    als_sample_mode = true;
-    als_sample_count = 0;
-
-    // Start the timer!
-    omar_als_timer_init(OMAR_ALS_SECONDARY_TIMER, 
-                        AUTO_RELOAD_ON, 
-                        get_als_timer_period(ALS_SAMPLE_TIMER));
-
-
-    timer_start(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SAMPLER_TIMER);
-}
-
-static void hexdump_als_samples(void)
-{
-    int address = 0;
-
-    for (int i=0; i<=ALS_SAMPLE_COUNT/16; i++) {
-        if (i*16 == ALS_SAMPLE_COUNT) {
-            break;
-        }
-        printf("0x%04x: ", address + i*16);
-        for (int j=0; i*16+j < ALS_SAMPLE_COUNT && j < 16; j++) {
-            printf("0x%02x ", als_sample_array[i*16+j]);
-        }
-        printf("\n");
-    }
-    
-}
-
-void report_als_samples(als_backroundsample_reportformat_t format)
-{
-    if (als_sample_mode) {
-        printf("%s(): Still taking als samples...\n", __func__);
-        return;
-    }
-
-    if (format == SINGLECOLUMNDECIMAL_REPORT_FORMAT) {
-      for (int i=0; i<ALS_SAMPLE_COUNT; i++) {
-        printf("%d\n", als_sample_array[i]);
-      }
-    } else {
-      hexdump_als_samples();
-    }
-    
-
+    timer_queue = xQueueCreate(10, sizeof(timer_event_t));
+    als_timer_init();
+    xTaskCreate(als_timer_task, "als_timer_task", 2048, NULL, 5, NULL);
 }
 
 void enable_als_timer(bool on)
 {
     if (on) {
-        timer_start(OMAR_ALS_TIMER_GROUP, OMAR_ALS_PRIMARY_TIMER);
+        timer_start(ALS_TIMER_GROUP, ALS_TIMER);
     } else {
-        timer_pause(OMAR_ALS_TIMER_GROUP, OMAR_ALS_PRIMARY_TIMER);
+        timer_pause(ALS_TIMER_GROUP, ALS_TIMER);
     }
 }
-
-void timer_setup(void)
-{
-    timer_queue = xQueueCreate(10, sizeof(timer_event_t));
-    omar_als_timer_init(OMAR_ALS_PRIMARY_TIMER, AUTO_RELOAD_ON, get_als_timer_period(PRIMARY_TIMER));
-    xTaskCreate(timer_example_evt_task, "timer_evt_task", 2048, NULL, 5, NULL);
-}
-
-typedef struct {
-    uint32_t led0_dutycycle;
-    uint32_t led1_dutycycle;
-} led_dutycycle_state_t;
-    
-static led_dutycycle_state_t led_state = {0, 0};
-
-static void pause_led_pwm(void)
-{
-    led_state.led0_dutycycle = led_get_brightness(OMAR_WHITE_LED0);
-    led_state.led1_dutycycle = led_get_brightness(OMAR_WHITE_LED1);
-
-    led_set_brightness(OMAR_WHITE_LED0, 0);
-    led_set_brightness(OMAR_WHITE_LED1, 0);
-}
-
-static void resume_led_pwm(void)
-{
-    led_set_brightness(OMAR_WHITE_LED0, led_state.led0_dutycycle);
-    led_set_brightness(OMAR_WHITE_LED1, led_state.led1_dutycycle);
-}
-
-static void timer_example_evt_task(void *arg)
-{
-
-    uint32_t block_time_msec = 250; // block a quarter second so you can pet the watchdog
-	static uint32_t als_samples_sofar = 0;
-
-    // Subscribe this task to the TWDT, check to make sure it's subscribed:
-    CHECK_ERROR_CODE(esp_task_wdt_add(NULL), ESP_OK);
-    CHECK_ERROR_CODE(esp_task_wdt_status(NULL), ESP_OK);
-
-    while (1) {
-        timer_event_t evt;
-        bool gotQueueEvent;
-
-        gotQueueEvent = xQueueReceive(timer_queue, &evt, block_time_msec / portTICK_PERIOD_MS);
-
-        CHECK_ERROR_CODE(esp_task_wdt_reset(), ESP_OK);  // Pet the watchdog each time through
-
-        if (!gotQueueEvent) {
-            // Timed out waiting for an event, nothing on the queue:
-            continue;
-        }
-
-        /* Print information that the timer reported an event */
-        if (evt.type == OMAR_ALS_PRIMARY_TIMER) {
-            /* Turn the LEDs off, and arm the secondary timer 
-             * to read the als adc after a short delay of
-             * OMAR_ALS_SECONDARY_INTERVAL:
-             */
-            pause_led_pwm();
-
-            omar_als_timer_init(OMAR_ALS_SECONDARY_TIMER, AUTO_RELOAD_OFF, get_als_timer_period(SECONDARY_TIMER));
-            timer_start(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SECONDARY_TIMER);
-            printf("\t\t\t\t\t\t\t\t<primary>\n");
-
-        
-        } else if (evt.type == OMAR_ALS_SECONDARY_TIMER) {
-
-            /* Once you've got your reading,
-             * re-enable the pwm led controller
-             * so the lights turn on again:
-             */
-            resume_led_pwm();
-
-            // Print out the als reading taken inside the timer interrupt:
-            printf("\t\t\t\t\t\t\t\t[als=%d]\n", evt.als_reading);
-
-            // Pause the secondary timer:
-            timer_pause(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SECONDARY_TIMER);
-            
-        } else if (evt.type == 43) {
-			als_samples_sofar++;
-			if (als_samples_sofar % 1000 == 0) {
-				printf("\r\n.\r\n");
-			}
-        } else if (evt.type == 42) {
-            // The sampling of als output is finished, print the report:
-          printf("%s(): Ambient light sensor sampling finished\n", __func__) ;
-
-          // Pause the als sample timer:
-          timer_pause(OMAR_ALS_TIMER_GROUP, OMAR_ALS_SAMPLER_TIMER);
-
-
-        } else {
-            printf("\n\t\t\t\t\t\t\t\t  UNKNOWN EVENT TYPE\n");
-        }
-
-        
-
-
-
-#if defined(OMAR_ALS_TIMER_VERBOSE)
-        printf("\t\t\t\t\t\t\t\tResuming ledc timer select OMAR_LEDC_TIMER (0x%02x):\n", OMAR_LEDC_TIMER);
-#endif
-            
-
-    }
-}
-
 
