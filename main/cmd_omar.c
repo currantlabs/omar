@@ -887,11 +887,11 @@ static struct {
     struct arg_lit *timer_on;
     struct arg_lit *display_periods;
     struct arg_int *secondarytimer_period;  // in microseconds
-    struct arg_lit *capture; // Sample for 60Hz noise for a period of seconds
-    struct arg_lit *report; // Dump the contents of memory, showing samples
-    struct arg_lit *export; // Print the array of data as a single column of 
-                            // decimal numbers (handy for exporting to Excel 
-                            // for plotting)
+    /* struct arg_lit *capture; // Sample for 60Hz noise for a period of seconds */
+    /* struct arg_lit *report; // Dump the contents of memory, showing samples */
+    /* struct arg_lit *export; // Print the array of data as a single column of  */
+    /*                         // decimal numbers (handy for exporting to Excel  */
+    /*                         // for plotting) */
     struct arg_end *end;
 } als_args;
 
@@ -903,27 +903,27 @@ static int print_als(int argc, char** argv)
         return 1;
     }
 
-    // Handle the als "capture/report/export" cases first:
-    if (als_args.capture->count != 0) {
+    /* // Handle the als "capture/report/export" cases first: */
+    /* if (als_args.capture->count != 0) { */
 
-        start_als_sample_capture();
-        return 0;
-    }
+    /*     start_als_sample_capture(); */
+    /*     return 0; */
+    /* } */
 
-    // Handle the als "capture/report/export" cases first:
-    if (als_args.report->count != 0) {
+    /* // Handle the als "capture/report/export" cases first: */
+    /* if (als_args.report->count != 0) { */
 
-        report_als_samples(HEXDUMP_REPORT_FORMAT);
-        return 0;
-    }
+    /*     report_als_samples(HEXDUMP_REPORT_FORMAT); */
+    /*     return 0; */
+    /* } */
 
 
-    // Handle the als "capture/report/export" cases first:
-    if (als_args.export->count != 0) {
+    /* // Handle the als "capture/report/export" cases first: */
+    /* if (als_args.export->count != 0) { */
 
-        report_als_samples(SINGLECOLUMNDECIMAL_REPORT_FORMAT);
-        return 0;
-    }
+    /*     report_als_samples(SINGLECOLUMNDECIMAL_REPORT_FORMAT); */
+    /*     return 0; */
+    /* } */
 
 
     // Take care of the simpler "dump timer periods" case first:
@@ -939,8 +939,8 @@ static int print_als(int argc, char** argv)
         }
         
         printf("Ambient light sensor timer periods\r\n\tPrimary:\t%0.2f (seconds)\r\n\tSecondary:\t%0.2f (microseconds)\n",
-               get_als_timer_period(PRIMARY_TIMER),
-               1000000 * get_als_timer_period(SECONDARY_TIMER));
+               1.0,
+               250.0);
 
 
         return 0;
@@ -962,48 +962,48 @@ static int print_als(int argc, char** argv)
 
     // Next handl the case of setting either of the ambient
     // light sensor timer periods:
-    if (als_args.secondarytimer_period->count != 0) {
+    /* if (als_args.secondarytimer_period->count != 0) { */
 
-        if (als_args.timer_off->count != 0
-            ||
-            als_args.timer_on->count != 0) {
+    /*     if (als_args.timer_off->count != 0 */
+    /*         || */
+    /*         als_args.timer_on->count != 0) { */
 
-            printf("%s(): The \"--enable\" and \"--disable\" options aren't allowed when setting either of the ambient light sensor periods\n", __func__);
+    /*         printf("%s(): The \"--enable\" and \"--disable\" options aren't allowed when setting either of the ambient light sensor periods\n", __func__); */
                
-            return 1;
-        }
+    /*         return 1; */
+    /*     } */
         
-        // Because the primary timer kicks off the secondary timer,
-        // its period must be greater than that of the secondary timer.
-        // So check this first...
+    /*     // Because the primary timer kicks off the secondary timer, */
+    /*     // its period must be greater than that of the secondary timer. */
+    /*     // So check this first... */
 
-        double secondarytimerperiod = 
-            (als_args.secondarytimer_period->count != 0 
-             ? 
-             (double ) (als_args.secondarytimer_period->ival[0]/1000000.0)
-             :
-             get_als_timer_period(SECONDARY_TIMER));
+    /*     double secondarytimerperiod =  */
+    /*         (als_args.secondarytimer_period->count != 0  */
+    /*          ?  */
+    /*          (double ) (als_args.secondarytimer_period->ival[0]/1000000.0) */
+    /*          : */
+    /*          get_als_timer_period(SECONDARY_TIMER)); */
 
 
-        double primarytimerperiod = get_als_timer_period(PRIMARY_TIMER);
+    /*     double primarytimerperiod = get_als_timer_period(PRIMARY_TIMER); */
 
-        if (secondarytimerperiod >= primarytimerperiod/2) {
-            printf("%s(): Error/Abort - the primary als timer period (%.8f seconds) must be at least twice as long as the secondary period (%.8f seconds)\n",
-                   __func__,
-                   primarytimerperiod,
-                   secondarytimerperiod);
+    /*     if (secondarytimerperiod >= primarytimerperiod/2) { */
+    /*         printf("%s(): Error/Abort - the primary als timer period (%.8f seconds) must be at least twice as long as the secondary period (%.8f seconds)\n", */
+    /*                __func__, */
+    /*                primarytimerperiod, */
+    /*                secondarytimerperiod); */
 
-            return 1;
-        }
+    /*         return 1; */
+    /*     } */
 
-        if (als_args.secondarytimer_period->count != 0) {
-            set_als_timer_period(SECONDARY_TIMER, ((double ) als_args.secondarytimer_period->ival[0])/1000000.0);
-        } 
+    /*     if (als_args.secondarytimer_period->count != 0) { */
+    /*         set_als_timer_period(SECONDARY_TIMER, ((double ) als_args.secondarytimer_period->ival[0])/1000000.0); */
+    /*     }  */
         
 
-        return 0;
+    /*     return 0; */
 
-    }   
+    /* }    */
 
     // You can't disable and enable at the same time:
     if (als_args.timer_off->count != 0
@@ -1044,20 +1044,20 @@ static void register_als()
         "<int>", 
         "Set the secondary als timer period (microseconds)");
     
-    als_args.capture = arg_lit0(
-        "c", 
-        "capture", 
-        "Capture 2 seconds worth of ambient light sensor (als) data");
+    /* als_args.capture = arg_lit0( */
+    /*     "c",  */
+    /*     "capture",  */
+    /*     "Capture 2 seconds worth of ambient light sensor (als) data"); */
 
-    als_args.report = arg_lit0(
-        "r", 
-        "report", 
-        "Display 2 seconds worth of ambient light sensor (als) data");
+    /* als_args.report = arg_lit0( */
+    /*     "r",  */
+    /*     "report",  */
+    /*     "Display 2 seconds worth of ambient light sensor (als) data"); */
 
-    als_args.export = arg_lit0(
-        "x", 
-        "export", 
-        "Display 2 seconds worth of ambient light sensor data as a single column of decimal numbers");
+    /* als_args.export = arg_lit0( */
+    /*     "x",  */
+    /*     "export",  */
+    /*     "Display 2 seconds worth of ambient light sensor data as a single column of decimal numbers"); */
 
     als_args.end = arg_end(5);
 
