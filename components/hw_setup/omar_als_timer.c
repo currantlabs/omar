@@ -54,6 +54,23 @@ typedef struct {
 
 static xQueueHandle timer_queue;
 
+static int als_normal = -1, als_darkpeek = -1;
+
+#define LEDSOFF (false)
+#define LEDSON  (true)
+
+/* static void ledsonoff(bool on) */
+/* { */
+/*  if (on) { */
+/*      led_set_brightness(OMAR_WHITE_LED0, 8000); */
+/*      led_set_brightness(OMAR_WHITE_LED1, 8000); */
+/*  } else { */
+/*      led_set_brightness(OMAR_WHITE_LED0, 0); */
+/*      led_set_brightness(OMAR_WHITE_LED1, 0); */
+/*  } */
+/* } */
+
+
 /*
  * als_timer_isr() ALS timer interrupt handler:
  *
@@ -87,11 +104,22 @@ void IRAM_ATTR als_timer_isr(void *para)
         evt.timer_counter_value = timer_counter_value;
         xQueueSendFromISR(timer_queue, &evt, NULL);
 
+        als_normal = als_raw();
+
+        /* ledsonoff(LEDSOFF); */
+
         next_alarm = timer_counter_value + TIMER_ALSREAD_ALARM;
 
     } else {
-        /* evt.timer = ALS_READ_TIMER; */
-        /* evt.als = 42; */
+        evt.timer = ALS_READ_TIMER;
+        evt.als = 42;
+        evt.timer_counter_value = timer_counter_value;
+        xQueueSendFromISR(timer_queue, &evt, NULL);
+
+        als_darkpeek = als_raw();
+
+        /* ledsonoff(LEDSON); */
+
         next_alarm = timer_counter_value + TIMER_PEEK_ALARM;
     }
 
@@ -131,7 +159,9 @@ static void als_timer_task(void *arg)
             continue;
         }
 
-        printf("Burrrrrrp!\n");
+        /* printf("Burrrrrrrp\n"); */
+
+        printf("\t\t\t\t als_normal = %d, als_darkpeek = %d\n", als_normal, als_darkpeek);
 
         /* switch (evt.timer) { */
 
@@ -192,6 +222,8 @@ static void als_timer_init(void)
     // till later. Use the "enable_als_timer()" api for that
     // (this api can also pause things)
 
+    timer_start(ALS_TIMER_GROUP, ALS_TIMER);
+
 }
 
 /*
@@ -208,9 +240,11 @@ void timer_setup(void)
 void enable_als_timer(bool on)
 {
     if (on) {
-        timer_start(ALS_TIMER_GROUP, ALS_TIMER);
+        /* ledsonoff(LEDSON); */
+        /* timer_start(ALS_TIMER_GROUP, ALS_TIMER); */
     } else {
-        timer_pause(ALS_TIMER_GROUP, ALS_TIMER);
+        /* ledsonoff(LEDSOFF); */
+        /* timer_pause(ALS_TIMER_GROUP, ALS_TIMER); */
     }
 }
 
