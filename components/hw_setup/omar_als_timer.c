@@ -10,6 +10,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "esp_task_wdt.h"
 #include "soc/timer_group_struct.h"
 #include "driver/periph_ctrl.h"
 #include "driver/timer.h"
@@ -51,7 +52,7 @@ typedef struct {
     uint64_t timer_counter_value;
 } timer_event_t;
 
-xQueueHandle timer_queue;
+static xQueueHandle timer_queue;
 
 /*
  * als_timer_isr() ALS timer interrupt handler:
@@ -80,16 +81,20 @@ void IRAM_ATTR als_timer_isr(void *para)
     timer_event_t evt;
 
     if (peek_alarm) {
+
         evt.timer = ALS_PEEK_TIMER;
         evt.als = -1;
+        evt.timer_counter_value = timer_counter_value;
+        xQueueSendFromISR(timer_queue, &evt, NULL);
+
         next_alarm = timer_counter_value + TIMER_ALSREAD_ALARM;
+
     } else {
-        evt.timer = ALS_READ_TIMER;
-        evt.als = 42;
+        /* evt.timer = ALS_READ_TIMER; */
+        /* evt.als = 42; */
         next_alarm = timer_counter_value + TIMER_PEEK_ALARM;
     }
 
-    evt.timer_counter_value = timer_counter_value;
 
     /* Clear the interrupt, and udpate the next alarm time for the timer:*/
     TIMERG0.int_clr_timers.t0 = 1;
@@ -99,9 +104,6 @@ void IRAM_ATTR als_timer_isr(void *para)
 
     /* The alarm must be re-enabled each time it is triggered:*/
     TIMERG0.hw_timer[ALS_TIMER].config.alarm_en = TIMER_ALARM_EN;
-    
-    /* Now just send the event data back to the main program task */
-    xQueueSendFromISR(timer_queue, &evt, NULL);
 
     /* Finally, switch the state: */
     peek_alarm = !peek_alarm;
@@ -110,42 +112,56 @@ void IRAM_ATTR als_timer_isr(void *para)
 
 static void als_timer_task(void *arg)
 {
+    uint32_t block_time_msec = 250; // block a quarter second so you can pet the watchdog
+
+    // Subscribe this task to the TWDT, check to make sure it's subscribed:
+    CHECK_ERROR_CODE(esp_task_wdt_add(NULL), ESP_OK);
+    CHECK_ERROR_CODE(esp_task_wdt_status(NULL), ESP_OK);
+
     while (1) {
         timer_event_t evt;
-        xQueueReceive(timer_queue, &evt, portMAX_DELAY);
+        bool gotQueueEvent;
 
-        switch (evt.timer) {
+        gotQueueEvent = xQueueReceive(timer_queue, &evt, block_time_msec / portTICK_PERIOD_MS);
 
-        case ALS_PEEK_TIMER:
-            printf("\r\n%s(): ALS peek timer fired at counter = 0x%08x%08x (%d). ALS = %d.\r\n",
-                   __func__,
-                   (uint32_t) (evt.timer_counter_value >> 32),
-                   (uint32_t) (evt.timer_counter_value),
-                   (uint32_t) (evt.timer_counter_value),
-                   evt.als);
-            break;
-            
-        case ALS_READ_TIMER:
-            printf("\r\n%s(): ALS read timer fired at counter = 0x%08x%08x (%d). ALS = %d.\r\n",
-                   __func__,
-                   (uint32_t) (evt.timer_counter_value >> 32),
-                   (uint32_t) (evt.timer_counter_value),
-                   (uint32_t) (evt.timer_counter_value),
-                   evt.als);
-            break;
-            
-        default:
-            printf("\r\n%s(): Uknown als timer event type: 0x%02x\r\n",
-                   __func__,
-                   evt.timer);
-            break;
-            
+        CHECK_ERROR_CODE(esp_task_wdt_reset(), ESP_OK);  // Pet the watchdog each time through
+
+        if (!gotQueueEvent) {
+            // Timed out waiting for an event, nothing on the queue:
+            continue;
         }
+
+        printf("Burrrrrrp!\n");
+
+        /* switch (evt.timer) { */
+
+        /* case ALS_PEEK_TIMER: */
+        /*     printf("\r\n%s(): ALS peek timer fired at counter = 0x%08x%08x (%d). ALS = %d.\r\n", */
+        /*            __func__, */
+        /*            (uint32_t) (evt.timer_counter_value >> 32), */
+        /*            (uint32_t) (evt.timer_counter_value), */
+        /*            (uint32_t) (evt.timer_counter_value), */
+        /*            evt.als); */
+        /*     break; */
+            
+        /* case ALS_READ_TIMER: */
+        /*     printf("\r\n%s(): ALS read timer fired at counter = 0x%08x%08x (%d). ALS = %d.\r\n", */
+        /*            __func__, */
+        /*            (uint32_t) (evt.timer_counter_value >> 32), */
+        /*            (uint32_t) (evt.timer_counter_value), */
+        /*            (uint32_t) (evt.timer_counter_value), */
+        /*            evt.als); */
+        /*     break; */
+            
+        /* default: */
+        /*     printf("\r\n%s(): Uknown als timer event type: 0x%02x\r\n", */
+        /*            __func__, */
+        /*            evt.timer); */
+        /*     break; */
+            
+        /* } */
     }   
 }
-
-
-xQueueHandle timer_queue;
 
 
 static void als_timer_init(void)
